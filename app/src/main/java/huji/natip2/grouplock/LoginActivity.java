@@ -8,12 +8,16 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.telephony.TelephonyManager;
 import android.view.View;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.google.i18n.phonenumbers.NumberParseException;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.google.i18n.phonenumbers.Phonenumber;
 import com.parse.LogInCallback;
 import com.parse.ParseInstallation;
 import com.parse.ParsePush;
@@ -78,7 +82,9 @@ public class LoginActivity extends AppCompatActivity {
         if (currentUser != null) {
             //user is exist!
             Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
+            intent.putExtra("countryCodeChosen", countryCodeChosen);
             startActivity(intent);
+            finish();
             return;
         }
 
@@ -102,8 +108,15 @@ public class LoginActivity extends AppCompatActivity {
 
     private void initUI() {
         phoneField = (AutoCompleteTextView) findViewById(R.id.phone_number_field);
+        TelephonyManager tm = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+        phoneField.setText(tm.getLine1Number());
         countryCodeChosen = DEFAULT_COUNTRY_CODE;
         countryCodeField = (Button) findViewById(R.id.countryCodeBT);
+        String defaultCode = MyGroupActivity.getUserCountry(getApplicationContext());
+        if (defaultCode != null) {
+            countryCodeChosen = defaultCode;
+            countryCodeField.setText("Choose code (default: " + defaultCode + ")");
+        }
         signUpButton = (Button) findViewById(R.id.phone_sign_in_button);
     }
 
@@ -112,7 +125,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1 && resultCode == Activity.RESULT_OK) {
             countryCodeChosen = data.getStringExtra(CountryCodeActivity.RESULT_CUONTRY_CODE);
-            Toast.makeText(this, "You selected countrycode: " + countryCodeChosen, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "You selected country code: " + countryCodeChosen, Toast.LENGTH_LONG).show();
 
         }
     }
@@ -185,12 +198,19 @@ public class LoginActivity extends AppCompatActivity {
             public void onClick(View view) {
                 final String rawPhone = phoneField.getText().toString();
                 int len = rawPhone.length();
+                PhoneNumberUtil phoneUtil = PhoneNumberUtil.getInstance();
+                Phonenumber.PhoneNumber numberProto = null;
+                try {
+                    numberProto = phoneUtil.parse(rawPhone, countryCodeChosen);
+                } catch (NumberParseException e) {
+                    System.err.println("NumberParseException was thrown: " + e.toString());
+                }
                 if (len == 0) {
                     phoneField.setError("Phone is required");
-                } else if (len != 10) {
+                } else if (!phoneUtil.isValidNumber (numberProto)) {
                     phoneField.setError("Invalid phone");
                 } else {
-                    final String username = MyGroupActivity.arrangeNumberWithCountry(rawPhone, getApplicationContext());
+                    final String username = MyGroupActivity.arrangeNumberWithCountry( rawPhone, countryCodeChosen);
                     // TODO: 14/10/2015
                     if (VERIFICATION) {
                         phoneSmsVerification(username);
@@ -277,6 +297,7 @@ public class LoginActivity extends AppCompatActivity {
         user.setUsername(username);
         user.setPassword(DEAFULAT_PASS);
         user.put("status", UserStatus.HAS_APP.toString());
+        user.put("countryCodeChosen", countryCodeChosen);
         user.signUpInBackground(new SignUpCallback() {
             public void done(com.parse.ParseException e) {
                 if (e == null) {
@@ -284,7 +305,9 @@ public class LoginActivity extends AppCompatActivity {
                             , Toast.LENGTH_LONG).show();
                     subscribeToPush(username);
                     Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
+                    intent.putExtra("countryCodeChosen", countryCodeChosen);
                     startActivity(intent);
+                    finish();
                 } else {
                     Toast.makeText(getApplicationContext(),
                             "There was an error signing up."
@@ -305,12 +328,15 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    private void logInExistingAccount(String username) {
+    private void logInExistingAccount(final String username) {
         ParseUser.logInInBackground(username, DEAFULAT_PASS, new LogInCallback() {
             public void done(ParseUser user, com.parse.ParseException e) {
                 if (user != null) {
+                    subscribeToPush(username);
                     Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
+                    intent.putExtra("countryCodeChosen", countryCodeChosen);
                     startActivity(intent);
+                    finish();
                 } else {
                     Toast.makeText(getApplicationContext(), "Wrong username/password combo",
                             Toast.LENGTH_LONG).show();

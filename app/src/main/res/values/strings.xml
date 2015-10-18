@@ -33,11 +33,11 @@
     </string-array>
 
     <string-array name="country_codes">
-        <item>1</item>
-        <item>45</item>
-        <item>46</item>
-        <item>47</item>
-        <item>972</item>
+        <item>US</item>
+        <item>DK</item>
+        <item>SV</item>
+        <item>NO</item>
+        <item>IL</item>
     </string-array>
 
     <string-array name="country_flags">
@@ -50,4 +50,5 @@
 	
     <string name="title_activity_countrycode">CountrycodeActivity</string>
     <string name="title_activity_country_list_array_adapter">CountryListArrayAdapter</string>
+    <string name="group_admin_name">Group Admin</string>
 </resources>

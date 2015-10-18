@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <item name="gray_holo_dark" type="color">#ff464646</item>
+
     <color name="colorPrimary">#ba2929</color>
     <color name="colorPrimaryDark">#cf8f8f</color>
     <color name="colorAccent">#FF4081</color>

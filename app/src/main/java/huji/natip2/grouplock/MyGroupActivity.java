@@ -4,10 +4,13 @@ import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.app.SearchManager;
 import android.app.SearchableInfo;
+import android.app.Service;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.support.design.widget.FloatingActionButton;
@@ -22,10 +25,20 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.telephony.SmsManager;
 import android.telephony.TelephonyManager;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
+import android.text.style.ImageSpan;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AutoCompleteTextView;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.SearchView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.i18n.phonenumbers.NumberParseException;
@@ -40,6 +53,10 @@ import com.parse.SendCallback;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Locale;
 
 
@@ -52,6 +69,8 @@ public class MyGroupActivity extends AppCompatActivity
     final static int PUSH_CODE_QUIT = 12;
 
     static final String PUSH_CODE = "pushCode";
+
+    final static int PUSH_CODE_NO_CODE = -10;
     final static int PUSH_CODE_ACCEPTED = 0;
     final static int PUSH_CODE_REJECTED = 1;
     final static int PUSH_CODE_NOT_SPECIFIED = 2;
@@ -61,31 +80,40 @@ public class MyGroupActivity extends AppCompatActivity
 
     private static final int TO_RESPONSE_CONVERT_ADDITION = 3;
     public Group adminGroup;
-    private int pushCode;
+    private int pushCode = PUSH_CODE_NO_CODE;
 
-
-    private void setupSearchView() {
-        SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
-        final SearchView searchView = (SearchView) findViewById(R.id.searchView);
-        SearchableInfo searchableInfo = searchManager.getSearchableInfo(getComponentName());
-        searchView.setSearchableInfo(searchableInfo);
-    }
 
     public String adminPhone = null;
+    public String groupId = null;
+
+    private SearchView searchView;
+    private ImageView closeBtn;
+    private String countryCodeChosen = null;
 
     @Override
     protected void onNewIntent(Intent intent) {
+        setIntent(intent);
+        if (intent.hasExtra("countryCodeChosen")) {
+            countryCodeChosen = intent.getStringExtra("countryCodeChosen");
+        }
+        if (intent.hasExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_TAG)) {
+            String tag = intent.getStringExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_TAG);
+            int id = intent.getIntExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_ID, MyPushReceiver.NOTIFICATION_ID);
+            if (MyPushReceiver.NOTIFICATION_ID == id && MyPushReceiver.NOTIFICATION_TAG.equals(tag)) {
+                // dismiss notification
+                NotificationManager manager = (NotificationManager) getSystemService(Service.NOTIFICATION_SERVICE);
+                manager.cancel(tag, id);
+            }
+        }
         if (ContactsContract.Intents.SEARCH_SUGGESTION_CLICKED.equals(intent.getAction())) {
             //handles suggestion clicked query
             addToListAdapter(intent);
+            closeSearchView();
         } else if (Intent.ACTION_SEARCH.equals(intent.getAction())) { // REMOVE: 14/09/2015
-            // Other query
-        } else if (intent.hasExtra(PUSH_CODE)) {
-            pushCode = intent.getIntExtra(PUSH_CODE, -1);
-            adminPhone = intent.getStringExtra("adminPhone");
+            // Other search query - next pressed
+            // TODO: 18/10/2015 only phone
         }
     }
-
 
     @Override
     protected void onResume() {
@@ -97,15 +125,21 @@ public class MyGroupActivity extends AppCompatActivity
 //            oweMeViewFragmentWithTag = (ListViewFragmentOweMe) getSupportFragmentManager().findFragmentByTag(Debt.OWE_ME_TAG);
 //        }
         // Check if we have a logged in user
-        switch (pushCode) {
-            case PUSH_CODE_ACCEPTED:
-            case PUSH_CODE_REJECTED:
-                sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
-                break;
-            case PUSH_CODE_NOT_SPECIFIED:
-                showConfirmDialog();
-                break;
+        Intent intent = getIntent();
+        if (intent.hasExtra(PUSH_CODE)) {
+            pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
+            adminPhone = intent.getStringExtra("adminPhone");
+            groupId = intent.getStringExtra("groupId");
+            switch (pushCode) {
+                case PUSH_CODE_ACCEPTED:
+                case PUSH_CODE_REJECTED:
+                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
+                    break;
+                case PUSH_CODE_NOT_SPECIFIED:
+                    showConfirmDialog();
+                    break;
 
+            }
         }
     }
 
@@ -135,14 +169,17 @@ public class MyGroupActivity extends AppCompatActivity
         String name = phoneCursor.getString(idDisplayName);
         phoneCursor.close();
         String phoneNumber = getPhoneNumber(name);
-        phoneNumber = arrangeNumberWithCountry(phoneNumber, getApplicationContext());
+        if (countryCodeChosen == null) {
+            countryCodeChosen = ParseUser.getCurrentUser().getString("countryCodeChosen");
+        }
+        phoneNumber = arrangeNumberWithCountry(phoneNumber, countryCodeChosen);
         if (phoneNumber == null) {
             Toast.makeText(MyGroupActivity.this, "Contact bad phone number", Toast.LENGTH_SHORT).show();
             return;
         }
         Toast.makeText(MyGroupActivity.this, "NAME" + name + " num" + phoneNumber, Toast.LENGTH_SHORT).show();
         UserItem user = new UserItem(name, phoneNumber, doesUserHaveApp(phoneNumber));
-        UserFragment.addperston(user);
+        UserFragment.addperson(user);
         return;
     }
 
@@ -162,8 +199,7 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    static String arrangeNumberWithCountry(String phoneNumber, Context context) {
-        String countryLetters = getUserCountry(context);
+    static String arrangeNumberWithCountry(String phoneNumber, String countryLetters) {
         String ret = formatToE164(phoneNumber, countryLetters);
         return ret;
     }
@@ -244,6 +280,7 @@ public class MyGroupActivity extends AppCompatActivity
 
             jsonObject.put(PUSH_CODE, pushCode);
             jsonObject.put("adminPhone", adminPhone);
+            jsonObject.put("groupId", groupId);
             jsonObject.put("senderPhone", myPhone);
 
             ParsePush push = new ParsePush();
@@ -282,7 +319,7 @@ public class MyGroupActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                sendRequestToAll();
+
             }
         });
 
@@ -300,48 +337,56 @@ public class MyGroupActivity extends AppCompatActivity
 
     private void sendRequestToAll() {
         for (UserItem item : UserFragment.theList) {
-
             if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
                 sendSmsRequest(item);
             } else if (item.getStatus().equals(UserStatus.HAS_APP)) {
                 sendPushNotification(item);
             }
-
-
         }
-
-
     }
 
+    static void broadcastChange(Group group, String adminPhone, String groupId) {
+        List<Object> participants = group.getParticipantsPhone();
+        for (Object phoneObj : participants) {
+            String phone = (String) phoneObj;
+            sendPush(phone, adminPhone, adminPhone, groupId, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
+        }
+    }
 
     private void sendPushNotification(UserItem item) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
-
         if (adminPhone == null) {
             adminPhone = myPhone;
             createNewTable();
         }
+        sendPush(item.getNumber(), myPhone, adminPhone, groupId, PUSH_CODE_CONFIRM_NOTIFICATION);
+    }
 
+    /**
+     * Sends a Push Notification.
+     *
+     * @param receiverPhone channel TO address
+     * @param senderPhone   extra
+     * @param adminPhone    extra
+     * @param groupId       extra
+     * @param pushCode      extra
+     */
+    static void sendPush(String receiverPhone, String senderPhone, String adminPhone, String groupId, int pushCode) {
         JSONObject jsonObject;
         try {
             jsonObject = new JSONObject();
-
-            jsonObject.put(PUSH_CODE, PUSH_CODE_CONFIRM_NOTIFICATION);
+            jsonObject.put(MyGroupActivity.PUSH_CODE, pushCode);
             jsonObject.put("adminPhone", adminPhone);
-            jsonObject.put("senderPhone", myPhone);
+            jsonObject.put("groupId", groupId);
+            jsonObject.put("senderPhone", senderPhone);
 
             ParsePush push = new ParsePush();
-            push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + item.getNumber().replaceAll("[^0-9]+", ""));
+            push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + receiverPhone.replaceAll("[^0-9]+", ""));
             push.setData(jsonObject);
             push.sendInBackground(new SendCallback() {
                 @Override
                 public void done(ParseException e) {
-                    if (e == null) {
-                    } else {
-                        Toast.makeText(getApplicationContext(),
-                                "Push not sent: " + e.getMessage(),
-                                Toast.LENGTH_LONG).show();// REMOVE: 15/09/2015
-                    }
+                    // TODO: 18/10/2015
                 }
             });
         } catch (JSONException e) {
@@ -349,14 +394,23 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private void createNewTable() {
+    void createNewTable() {
         adminGroup = new Group();
         adminGroup.setAdmin(adminPhone);
+        addAdminToList();
         try {
             adminGroup.save();
+            groupId = adminGroup.getObjectId();
         } catch (ParseException e) {
             e.printStackTrace();
         }
+    }
+
+    private void addAdminToList() {
+        adminGroup.putParticipant(adminPhone, UserStatus.VERIFIED);
+        adminGroup.saveInBackground();
+        UserFragment.theList.add(new UserItem(getString(R.string.group_admin_name), adminPhone, UserStatus.VERIFIED));
+        UserFragment.adapterTodo.notifyDataSetChanged();
     }
 
 
@@ -390,8 +444,8 @@ public class MyGroupActivity extends AppCompatActivity
         if (id == R.id.action_settings) {
             return true;
         }
-        if (id == R.id.search_badge) { //// TODO: 13/10/2015 continue from here
-
+        if (id == R.id.search_badge) {
+            sendRequestToAll();
         }
 
 
@@ -448,5 +502,101 @@ public class MyGroupActivity extends AppCompatActivity
     @Override
     public void onFragmentInteraction(String id) {
 
+    }
+
+
+    private void setupSearchView() {
+        SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+        searchView = (SearchView) findViewById(R.id.searchView);
+        SearchableInfo searchableInfo = searchManager.getSearchableInfo(getComponentName());
+        searchView.setSearchableInfo(searchableInfo);
+        setSearchIcons();
+        setSearchTextColors();
+    }
+
+    /**
+     * Changes the hint and text colors of the <code>SearchView</code>.
+     */
+    private void setSearchTextColors() {
+        LinearLayout linearLayout1 = (LinearLayout) searchView.getChildAt(0);
+        LinearLayout linearLayout2 = (LinearLayout) linearLayout1.getChildAt(2);
+        LinearLayout linearLayout3 = (LinearLayout) linearLayout2.getChildAt(1);
+        AutoCompleteTextView searchAutoComplete = (AutoCompleteTextView) linearLayout3.getChildAt(0);
+        //Set the input text color
+        searchAutoComplete.setTextColor(Color.WHITE);
+        // set the hint text color
+        searchAutoComplete.setHintTextColor(Color.WHITE);
+        //Some drawable (e.g. from xml)
+        searchAutoComplete.setDropDownBackgroundResource(R.drawable.search_autocomplete_dropdown);
+        searchAutoComplete.setOnEditorActionListener(new EditText.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+
+                closeSearchView();
+                return true;
+
+            }
+        });
+    }
+
+    private void closeSearchView() {
+        closeBtn.performClick();
+        closeBtn.performClick();
+    }
+
+    /**
+     * Changes the icons of the <code>SearchView</code>, using Java's reflection.
+     */
+    private void setSearchIcons() {
+        try {
+            Field searchField = SearchView.class.getDeclaredField("mCloseButton");
+            searchField.setAccessible(true);
+            closeBtn = (ImageView) searchField.get(searchView);
+            closeBtn.setImageResource(R.drawable.ic_close_white_24dp);
+
+            searchField = SearchView.class.getDeclaredField("mVoiceButton");
+            searchField.setAccessible(true);
+            ImageView voiceBtn = (ImageView) searchField.get(searchView);
+            voiceBtn.setImageResource(R.drawable.ic_keyboard_voice_white_24dp);
+
+            searchField = SearchView.class.getDeclaredField("mSearchButton");
+            searchField.setAccessible(true);
+            ImageView searchButton = (ImageView) searchField.get(searchView);
+            searchButton.setImageResource(R.drawable.ic_search_white_24dp);
+
+            // Accessing the SearchAutoComplete
+            int queryTextViewId = getResources().getIdentifier("android:id/search_src_text", null, null);
+            View autoComplete = searchView.findViewById(queryTextViewId);
+
+            Class<?> clazz = Class.forName("android.widget.SearchView$SearchAutoComplete");
+
+            SpannableStringBuilder stopHint = new SpannableStringBuilder("   ");
+            stopHint.append(getString(R.string.findContact));
+
+            // Add the icon as an spannable
+            Drawable searchIcon = getResources().getDrawable(R.drawable.ic_search_white_24dp);
+            Method textSizeMethod = clazz.getMethod("getTextSize");
+            Float rawTextSize = (Float) textSizeMethod.invoke(autoComplete);
+            int textSize = (int) (rawTextSize * 1.25);
+            if (searchIcon != null) {
+                searchIcon.setBounds(0, 0, textSize, textSize);
+            }
+            stopHint.setSpan(new ImageSpan(searchIcon), 1, 2, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+            // Set the new hint text
+            Method setHintMethod = clazz.getMethod("setHint", CharSequence.class);
+            setHintMethod.invoke(autoComplete, stopHint);
+
+        } catch (NoSuchFieldException e) {
+            Log.e("SearchView", e.getMessage(), e);
+        } catch (IllegalAccessException e) {
+            Log.e("SearchView", e.getMessage(), e);
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 }

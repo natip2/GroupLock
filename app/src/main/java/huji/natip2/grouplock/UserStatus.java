@@ -6,8 +6,8 @@ package huji.natip2.grouplock;
 public enum UserStatus {
     DOES_NOT_HAVE_APP,
     HAS_APP,
-    USER_CANCEL,
-    VERIFIED_LOCK,
+    DENIED,
+    VERIFIED,
     LOCKED,
     WAIT_FOR_VERIFICATION
 }

@@ -28,7 +28,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.List;
 
 //import huji.natip2.grouplock.dummy.DummyContent;
 
@@ -70,7 +69,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     protected String myNumber;
     private boolean isAdmin;
 
-    public static void addperston(UserItem user) {
+    public static void addperson(UserItem user) {
         theList.add(user);
         adapterTodo.notifyDataSetChanged();
     }
@@ -89,17 +88,17 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                 b.setIcon(android.R.drawable.ic_dialog_alert);
                 final int positionToRemove = pos;
                 final String number = item.getNumber();
-                b.setMessage(item.getName()+ " "+ number);
+                b.setMessage(item.getName() + " " + number);
 
                 if (canRemove(item)) {
-                    b.setPositiveButton("remove from list", new DialogInterface.OnClickListener() {
+                    b.setPositiveButton("Remove from list", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             //todo open the lock for this number
                             theList.remove(positionToRemove);
                             adapterTodo.notifyDataSetChanged();
-                            if (isLocked(item) && isAdmin()) {
+                            if (isVerified(item) && isAdmin()) {
                                 removeFromParse(number);
-                                broadcastChange(((MyGroupActivity) getActivity()).adminGroup);
+                                MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
                             }
                         }
                     });
@@ -126,53 +125,16 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         });
     }
 
-    private boolean isLocked(UserItem item) {
-        return item.getStatus().equals(UserStatus.LOCKED);
+    private boolean isVerified(UserItem item) {
+        return item.getStatus().equals(UserStatus.VERIFIED);
     }
 
-
-    private void broadcastChange(Group group) {
-        List<Object> participants = group.getParticipantsPhone();
-        for (Object phoneObj : participants) {
-            String phone = (String) phoneObj;
-            sendUpdatePush(phone);
-        }
-    }
-
-    //send push to phone, need to update theList from parse
-    private void sendUpdatePush(String phone) {
-        JSONObject jsonObject;
-        try {
-            jsonObject = new JSONObject();
-
-            jsonObject.put(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UPDATE_LIST_FROM_PARSE);
-            jsonObject.put("adminPhone", ((MyGroupActivity) getActivity()).adminPhone);
-            jsonObject.put("senderPhone", ((MyGroupActivity) getActivity()).adminPhone);
-
-            ParsePush push = new ParsePush();
-            push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + phone.replaceAll("[^0-9]+", ""));
-            push.setData(jsonObject);
-            push.sendInBackground(new SendCallback() {
-                @Override
-                public void done(ParseException e) {
-                    if (e == null) {
-                    } else {
-                        Toast.makeText(getActivity(),
-                                "Push not sent: " + e.getMessage(),
-                                Toast.LENGTH_LONG).show();// REMOVE: 15/09/2015
-                    }
-                }
-            });
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
 
     private boolean canRemove(UserItem item) {
         if (isAdmin()) {
             return true;
         }
-        return !isLocked(item);
+        return !isVerified(item);
     }
 
     private boolean isAdmin() {
@@ -181,22 +143,13 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         return myPhone.equals(((MyGroupActivity) getActivity()).adminPhone);
     }
 
-    private void createNewTable() {
-        ((MyGroupActivity) getActivity()).adminGroup = new Group();
-        ((MyGroupActivity) getActivity()).adminGroup.setAdmin(((MyGroupActivity) getActivity()).adminPhone);
-        try {
-            ((MyGroupActivity) getActivity()).adminGroup.save();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-    }
 
     private void sendPushNotification(UserItem item) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
 
         if (((MyGroupActivity) getActivity()).adminPhone == null) {
             ((MyGroupActivity) getActivity()).adminPhone = myPhone;
-            createNewTable();
+            ((MyGroupActivity) getActivity()).createNewTable();
         }
 
         JSONObject jsonObject;
@@ -205,7 +158,9 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
 
             jsonObject.put(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_CONFIRM_NOTIFICATION);
             jsonObject.put("adminPhone", ((MyGroupActivity) getActivity()).adminPhone);
+            jsonObject.put("groupId", ((MyGroupActivity) getActivity()).groupId);
             jsonObject.put("senderPhone", myPhone);
+
 
             ParsePush push = new ParsePush();
             push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + item.getNumber().replaceAll("[^0-9]+", ""));
@@ -237,12 +192,13 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
 
     private void removeFromParse(final String number) {
         ParseQuery<Group> query = Group.getQuery();
-        query.whereEqualTo(Group.KEY_ADMIN, myNumber);
+        query.whereEqualTo("objectId", ((MyGroupActivity) getActivity()).groupId);
         query.getFirstInBackground(new GetCallback<Group>() {
             @Override
             public void done(Group group, ParseException e) {
                 if (e == null) {
                     group.removeParticipant(number);
+                    group.saveInBackground();
                 }
             }
         });
