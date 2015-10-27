@@ -96,7 +96,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                             //todo open the lock for this number
                             theList.remove(positionToRemove);
                             adapterTodo.notifyDataSetChanged();
-                            if (isVerified(item) && isAdmin()) {
+                            if (isVerified(item) && ((MyGroupActivity) getActivity()).isAdmin()) {
                                 removeFromParse(number);
                                 MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
                             }
@@ -131,17 +131,13 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
 
 
     private boolean canRemove(UserItem item) {
-        if (isAdmin()) {
+        if (((MyGroupActivity) getActivity()).isAdmin()) {
             return true;
         }
         return !isVerified(item);
     }
 
-    private boolean isAdmin() {
-        String myPhone = ParseUser.getCurrentUser().getUsername();
 
-        return myPhone.equals(((MyGroupActivity) getActivity()).adminPhone);
-    }
 
 
     private void sendPushNotification(UserItem item) {

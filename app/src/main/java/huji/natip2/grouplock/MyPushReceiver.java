@@ -35,7 +35,6 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
     private String adminPhone;
     private String senderPhone;
     private int pushCode;
-    private Context mContext;
     private String groupId;
 
     @Override
@@ -65,15 +64,23 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 break;
             //the admin get push for removing the user from parse
             case MyGroupActivity.PUSH_CODE_QUIT:
-                // TODO: 15/10/2015  
+                // TODO: 15/10/2015
                 break;
             //the admin get this code from the user
             case MyGroupActivity.PUSH_RESPONSE_CODE_ACCEPTED:
             case MyGroupActivity.PUSH_RESPONSE_CODE_REJECTED:
                 addSenderToLocalListAndUpdateParseAndBroadcast();
                 break;
+            case MyGroupActivity.PUSH_ADMIN_LOCK:
+                Intent intentone = new Intent(context.getApplicationContext(), SplashLockScreen.class);
+                intentone.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intentone);
+                break;
+
+
         }
     }
+    private Context mContext;
 
 
     private void updateLocalListFromParse() {
@@ -82,7 +89,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         query.getFirstInBackground(new GetCallback<Group>() {
             @Override
             public void done(Group group, ParseException e) {
-                UserFragment.theList = new ArrayList<UserItem>();
+                removeVerifiedUsers(UserFragment.theList);
                 List<Object> participantsPhone = group.getParticipantsPhone();
                 List<Object> participantsStatus = group.getParticipantsStatus();
                 int i = 0;
@@ -97,6 +104,10 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 UserFragment.adapterTodo.notifyDataSetChanged();
             }
         });
+    }
+
+    private void removeVerifiedUsers(ArrayList<UserItem> theList) {
+        // TODO: 20/10/2015
     }
 
 
@@ -121,7 +132,16 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         }
         UserFragment.adapterTodo.notifyDataSetChanged();
 
-        // update parse from local
+        for (UserItem item : UserFragment.theList) {
+            if (item.getStatus().equals(UserStatus.VERIFIED)){
+                int id = R.drawable.ic_search_white_24dp;
+//                FloatingActionButton fab = (FloatingActionButton) mContext.findViewById(R.id.fab);
+//                fab.setImageResource(id);
+
+                break;
+            }
+        }
+        // add current person to parse
         ParseQuery<Group> query = Group.getQuery();
         query.whereEqualTo("objectId", groupId);
         query.getFirstInBackground(new GetCallback<Group>() {
@@ -131,15 +151,13 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 group.saveInBackground(new SaveCallback() {
                     @Override
                     public void done(ParseException e) {
-                        MyGroupActivity.broadcastChange(group,adminPhone,groupId);
+                        MyGroupActivity.broadcastChange(group, adminPhone, groupId);
                     }
                 });
             }
         });
 
     }
-
-
 
 
     public void showNotification(Context context) {
@@ -155,7 +173,10 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         intent.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_NOT_SPECIFIED);
         intent.putExtra("adminPhone", adminPhone);
         intent.putExtra("groupId", groupId);
+        intent.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
+        intent.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
         PendingIntent pIntent = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), intent, 0);
+
 
         Intent intent2 = new Intent(context, MyGroupActivity.class);
         intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -184,7 +205,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Notification n = new Notification.Builder(context)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_luncher)
                 .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true)

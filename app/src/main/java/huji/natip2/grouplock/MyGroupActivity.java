@@ -1,3 +1,18 @@
+/**
+ * todo:
+ * 1. 2 people
+ * 2. update locked phone after push lock
+ * 3. maps, parse geo location
+ * 4. history
+
+ *
+ * dont:
+ * 1. splash screen (+ lock)
+ * 2. phone- no contact phone
+ * 3. group picture
+ */
+
+
 package huji.natip2.grouplock;
 
 import android.app.AlertDialog;
@@ -76,8 +91,9 @@ public class MyGroupActivity extends AppCompatActivity
     final static int PUSH_CODE_NOT_SPECIFIED = 2;
     final static int PUSH_RESPONSE_CODE_ACCEPTED = 3;
     final static int PUSH_RESPONSE_CODE_REJECTED = 4;
-    final static int PUSH_RESPONSE_CODE_NOT_SPECIFIED = 5;
+    static final int PUSH_ADMIN_LOCK = 6;
 
+    final static int PUSH_RESPONSE_CODE_NOT_SPECIFIED = 5;
     private static final int TO_RESPONSE_CONVERT_ADDITION = 3;
     public Group adminGroup;
     private int pushCode = PUSH_CODE_NO_CODE;
@@ -89,6 +105,7 @@ public class MyGroupActivity extends AppCompatActivity
     private SearchView searchView;
     private ImageView closeBtn;
     private String countryCodeChosen = null;
+    private FloatingActionButton fab;
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -112,6 +129,7 @@ public class MyGroupActivity extends AppCompatActivity
         } else if (Intent.ACTION_SEARCH.equals(intent.getAction())) { // REMOVE: 14/09/2015
             // Other search query - next pressed
             // TODO: 18/10/2015 only phone
+            String phoneManualy = "lal";
         }
     }
 
@@ -125,6 +143,10 @@ public class MyGroupActivity extends AppCompatActivity
 //            oweMeViewFragmentWithTag = (ListViewFragmentOweMe) getSupportFragmentManager().findFragmentByTag(Debt.OWE_ME_TAG);
 //        }
         // Check if we have a logged in user
+
+
+//            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
+        changeFabIcon();
         Intent intent = getIntent();
         if (intent.hasExtra(PUSH_CODE)) {
             pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
@@ -141,6 +163,38 @@ public class MyGroupActivity extends AppCompatActivity
 
             }
         }
+        if (adminPhone == null || isAdmin()) {
+             // TODO: 20/10/2015 change to send :
+
+            fab.setVisibility(View.VISIBLE);
+        }else{
+            fab.setVisibility(View.GONE);
+        }
+    }
+    private void sendPushLockToAll(){
+        for (UserItem item : UserFragment.theList){
+            if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
+                sendPush(item.getNumber(),adminPhone,adminPhone,groupId,MyGroupActivity.PUSH_ADMIN_LOCK);
+            }
+        }
+    }
+
+    protected void changeFabIcon() {
+        if(hasMoreThenVerify()) {
+            int id = getResources().getIdentifier("huji.natip2.grouplock:drawable/" + "ic_send_white_24dp", null, null);
+
+//            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
+            fab.setImageResource(id);
+        }
+    }
+
+    private boolean hasMoreThenVerify() {
+        for (UserItem item :  UserFragment.theList){
+            if (item.getStatus().equals(UserStatus.VERIFIED)){
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -315,11 +369,16 @@ public class MyGroupActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
+
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
+                if (hasMoreThenVerify()) {
+                    sendPushLockToAll();
+                } else {
+                    sendRequestToAll(); // FIXME: 20/10/2015
+                }
             }
         });
 
@@ -333,6 +392,11 @@ public class MyGroupActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
         onNavigationItemSelected(null);
         setupSearchView();
+    }
+
+    boolean isAdmin() {
+        String myPhone = ParseUser.getCurrentUser().getUsername();
+        return myPhone.equals(adminPhone);
     }
 
     private void sendRequestToAll() {
@@ -349,7 +413,9 @@ public class MyGroupActivity extends AppCompatActivity
         List<Object> participants = group.getParticipantsPhone();
         for (Object phoneObj : participants) {
             String phone = (String) phoneObj;
-            sendPush(phone, adminPhone, adminPhone, groupId, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
+            if(!phone.equals(adminPhone)) {
+                sendPush(phone, adminPhone, adminPhone, groupId, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
+            }
         }
     }
 
