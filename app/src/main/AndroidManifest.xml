@@ -114,7 +114,7 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".CollectionDemoActivity" android:label="@string/demo_collection" />
+        <activity android:name=".CollectionDemoActivity" android:label="@string/skip" />
     </application>
 
 </manifest>
