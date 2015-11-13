@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="huji.natip2.grouplock" >
+    package="huji.natip2.grouplock">
 
     <!-- To auto-complete the email text field in the login form with the user's emails -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
@@ -27,16 +27,34 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/AppTheme">
+
+
+        ...
+        <!--
+            Because android:exported is set to "false",
+            the service is only available to this app.
+        -->
+        <service
+            android:name=".RSSPullService"
+            android:exported="false"/>
+
+
         <activity
+            android:screenOrientation="portrait"
             android:name=".LoginActivity"
-            android:label="@string/app_name" >
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
         <activity
+            android:screenOrientation="portrait"
             android:name=".CountryCodeActivity"
             android:label="@string/title_activity_countrycode"
             android:parentActivityName=".LoginActivity"
-            android:theme="@android:style/Theme.Holo.Light.Dialog" >
+            android:theme="@android:style/Theme.Holo.Light.Dialog">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="huji.natip2.grouplock.LoginActivity" />
@@ -44,8 +62,9 @@
         <activity
             android:name=".MyGroupActivity"
             android:label="@string/app_name"
+            android:screenOrientation="portrait"
             android:launchMode="singleTop"
-            android:theme="@style/AppTheme.NoActionBar" >
+            android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
 
                 <!-- <action android:name="android.intent.action.MAIN" /> -->
@@ -62,14 +81,14 @@
 
         <receiver
             android:name=".MyPushReceiver"
-            android:exported="false" >
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.parse.push.intent.RECEIVE" />
                 <action android:name="com.parse.push.intent.DELETE" />
                 <action android:name="com.parse.push.intent.OPEN" />
             </intent-filter>
         </receiver>
-        <receiver android:name="com.parse.ParseBroadcastReceiver" >
+        <receiver android:name="com.parse.ParseBroadcastReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.USER_PRESENT" />
@@ -77,7 +96,7 @@
         </receiver>
         <receiver
             android:name="com.parse.GcmBroadcastReceiver"
-            android:permission="com.google.android.c2dm.permission.SEND" >
+            android:permission="com.google.android.c2dm.permission.SEND">
             <intent-filter>
                 <action android:name="com.google.android.c2dm.intent.RECEIVE" />
                 <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
@@ -91,30 +110,53 @@
             android:resource="@drawable/ic_lock_outline_white_24dp" />
 
         <activity
-            android:name=".SplashLockScreen"
+            android:name=".LockScreen"
             android:configChanges="orientation|keyboardHidden|screenSize"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_splash_lock_screen"
-            android:theme="@style/FullscreenTheme" >
-        </activity>
+            android:theme="@style/FullscreenTheme"/>
 
-        <!-- <service -->
-        <!-- android:name=".RSSPullService" -->
-        <!-- android:exported="false" > -->
-        <!-- </service> -->
+         <service
+         android:name=".RSSPullService"
+         android:exported="false" >
+         </service>
+
         <service
             android:name=".RSSLock"
-            android:enabled="true"
-            android:exported="true" >
-        </service>
 
-        <activity android:name=".ScreenSlidePagerActivity" >
+            android:enabled="true"
+            android:exported="true"/>
+
+        <activity
+            android:name=".SplashActivity"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <!--<category android:name="android.intent.category.LAUNCHER" />-->
             </intent-filter>
         </activity>
 
-        <activity android:name=".CollectionDemoActivity" android:label="@string/skip" />
+<!--        <activity
+            android:name=".DisableHome"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.ALTERNATIVE" />
+            </intent-filter>
+        </activity>-->
+
+        <activity
+            android:screenOrientation="portrait"
+            android:name=".ScreenSlidePagerActivity">
+
+        </activity>
+
+        <activity
+            android:name=".CollectionDemoActivity"
+            android:screenOrientation="portrait"
+            android:label="@string/skip" />
     </application>
 
 </manifest>

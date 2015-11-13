@@ -72,9 +72,9 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 addSenderToLocalListAndUpdateParseAndBroadcast();
                 break;
             case MyGroupActivity.PUSH_ADMIN_LOCK:
-                Intent intentone = new Intent(context.getApplicationContext(), SplashLockScreen.class);
-                intentone.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intentone);
+                Intent lockIntent = new Intent(context.getApplicationContext(), LockScreen.class);
+                lockIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(lockIntent);
                 break;
 
 
@@ -205,7 +205,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Notification n = new Notification.Builder(context)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSmallIcon(R.drawable.ic_luncher)
+                .setSmallIcon(R.drawable.ic_splash_launcher)
                 .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true)

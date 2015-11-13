@@ -180,7 +180,7 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     protected void changeFabIcon() {
-        if(hasMoreThenVerify()) {
+        if(hasMoreThenOneVerifiedUser()) {
             int id = getResources().getIdentifier("huji.natip2.grouplock:drawable/" + "ic_send_white_24dp", null, null);
 
 //            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
@@ -188,7 +188,7 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private boolean hasMoreThenVerify() {
+    private boolean hasMoreThenOneVerifiedUser() {
         for (UserItem item :  UserFragment.theList){
             if (item.getStatus().equals(UserStatus.VERIFIED)){
                 return true;
@@ -374,7 +374,7 @@ public class MyGroupActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (hasMoreThenVerify()) {
+                if (hasMoreThenOneVerifiedUser()) {
                     sendPushLockToAll();
                 } else {
                     sendRequestToAll(); // FIXME: 20/10/2015
@@ -594,6 +594,7 @@ public class MyGroupActivity extends AppCompatActivity
         searchAutoComplete.setHintTextColor(Color.WHITE);
         //Some drawable (e.g. from xml)
         searchAutoComplete.setDropDownBackgroundResource(R.drawable.search_autocomplete_dropdown);
+        searchAutoComplete.setDropDownHorizontalOffset(-100);
         searchAutoComplete.setOnEditorActionListener(new EditText.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {

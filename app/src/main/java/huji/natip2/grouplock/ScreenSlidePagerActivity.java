@@ -204,6 +204,9 @@ public class ScreenSlidePagerActivity extends FragmentActivity implements Action
                 case (2):
 
                     break;
+                case (3):
+
+                    break;
 
 
             }
