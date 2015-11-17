@@ -31,7 +31,7 @@ public class CustomAdapter extends ArrayAdapter<UserItem> {
         UserItem item = getItem(position);
         String name = item.getName();
         String phone = item.getNumber();
-        String title = (name != null ? name + "\n" : "") + phone;
+        String title = (name != null ? name : "") + "\n" + phone;
         if (phone.equals(myPhone)) {
             title = "Me";
             phonePlace.setTextColor(Color.GRAY);
@@ -43,6 +43,8 @@ public class CustomAdapter extends ArrayAdapter<UserItem> {
         }
 
         phonePlace.setText(title);
+        phonePlace.setCompoundDrawablePadding(25);
+
         UserStatus stat = item.getStatus();
         switch (stat) {
             case DOES_NOT_HAVE_APP: {

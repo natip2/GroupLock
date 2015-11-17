@@ -19,6 +19,11 @@ public class UserItem {
         return this.name;
     }
 
+    public String getDisplayName() {
+        return this.name != null ? this.name : this.number;
+    }
+
+
     public String getNumber() {
         return this.number;
     }
@@ -38,7 +43,7 @@ public class UserItem {
         }
         UserItem o = (UserItem) obj;
 
-        return  number.equals(o.number);
+        return number.equals(o.number);
     }
 }
 

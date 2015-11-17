@@ -4,8 +4,8 @@
  * 2. update locked phone after push lock
  * 3. maps, parse geo location
  * 4. history
-
- *
+ * <p/>
+ * <p/>
  * dont:
  * 1. splash screen (+ lock)
  * 2. phone- no contact phone
@@ -129,7 +129,10 @@ public class MyGroupActivity extends AppCompatActivity
         } else if (Intent.ACTION_SEARCH.equals(intent.getAction())) { // REMOVE: 14/09/2015
             // Other search query - next pressed
             // TODO: 18/10/2015 only phone
-            String phoneManualy = "lal";
+            String phoneNumber = searchView.getQuery().toString();
+            UserItem user = new UserItem(null, phoneNumber, doesUserHaveApp(phoneNumber));
+            UserFragment.addPerson(user);
+            closeSearchView();
         }
     }
 
@@ -146,7 +149,7 @@ public class MyGroupActivity extends AppCompatActivity
 
 
 //            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
-        changeFabIcon();
+        updateFab();
         Intent intent = getIntent();
         if (intent.hasExtra(PUSH_CODE)) {
             pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
@@ -164,37 +167,90 @@ public class MyGroupActivity extends AppCompatActivity
             }
         }
         if (adminPhone == null || isAdmin()) {
-             // TODO: 20/10/2015 change to send :
-
+            // TODO: 20/10/2015 change to send :
             fab.setVisibility(View.VISIBLE);
-        }else{
+        } else {
             fab.setVisibility(View.GONE);
         }
     }
-    private void sendPushLockToAll(){
-        for (UserItem item : UserFragment.theList){
+
+    private void lockVerifiedAndRequestOthers() {
+        for (UserItem item : UserFragment.theList) {
             if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
-                sendPush(item.getNumber(),adminPhone,adminPhone,groupId,MyGroupActivity.PUSH_ADMIN_LOCK);
+                sendPush(item.getNumber(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_LOCK);
+            } else if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
+                sendSmsRequest(item);
+            } else if (item.getStatus().equals(UserStatus.HAS_APP)) {
+                sendPushNotification(item);
             }
         }
     }
 
-    protected void changeFabIcon() {
-        if(hasMoreThenOneVerifiedUser()) {
-            int id = getResources().getIdentifier("huji.natip2.grouplock:drawable/" + "ic_send_white_24dp", null, null);
+    private void lock() {
 
-//            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
-            fab.setImageResource(id);
-        }
+        TextView title = (TextView) findViewById(R.id.toolbar_title);
+        title.setCompoundDrawablePadding(25);
+        title.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);
+
+        startLockService(getApplicationContext());
     }
 
-    private boolean hasMoreThenOneVerifiedUser() {
-        for (UserItem item :  UserFragment.theList){
-            if (item.getStatus().equals(UserStatus.VERIFIED)){
-                return true;
+    private void unlock() {
+
+        TextView title = (TextView) findViewById(R.id.toolbar_title);
+        title.setCompoundDrawablePadding(25);
+        title.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);
+
+        stopLockService(getApplicationContext());
+    }
+
+    static void startLockService(Context context) {
+        Intent lockServiceIntent = new Intent(context, AppLockService.class);
+        context.startService(lockServiceIntent);
+    }
+
+    static void stopLockService(Context context) {
+        Intent lockServiceIntent = new Intent(context, AppLockService.class);
+        context.stopService(lockServiceIntent);
+    }
+
+    protected void updateFab() {
+        int numVerified = 0;
+        int numNotSent = 0;
+        for (UserItem item : UserFragment.theList) {
+            UserStatus status = item.getStatus();
+            if (status.equals(UserStatus.VERIFIED)) {
+                numVerified++;
+            } else if (!status.equals(UserStatus.WAIT_FOR_VERIFICATION)) {
+                numNotSent++;
             }
         }
-        return false;
+
+        if (numVerified > 0) {
+            fab.setImageResource(R.drawable.ic_lock_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    lockVerifiedAndRequestOthers();
+                }
+            });
+        } else if (numNotSent > 0) {
+            fab.setImageResource(R.drawable.ic_send_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendRequestToAll();
+                }
+            });
+        } else {
+            fab.setImageResource(R.drawable.ic_search_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    searchView.setIconified(false);
+                }
+            });
+        }
     }
 
 
@@ -233,7 +289,7 @@ public class MyGroupActivity extends AppCompatActivity
         }
         Toast.makeText(MyGroupActivity.this, "NAME" + name + " num" + phoneNumber, Toast.LENGTH_SHORT).show();
         UserItem user = new UserItem(name, phoneNumber, doesUserHaveApp(phoneNumber));
-        UserFragment.addperson(user);
+        UserFragment.addPerson(user);
         return;
     }
 
@@ -369,18 +425,13 @@ public class MyGroupActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        fab = (FloatingActionButton) findViewById(R.id.fab);
+        TextView title = (TextView) findViewById(R.id.toolbar_title);
+        title.setCompoundDrawablePadding(25);
+/*        Drawable d = getResources().getDrawable(R.drawable.ic_lock_open_white_36dp);
+        d.setColorFilter(R.color.gray_holo_dark,);*/
+        title.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);
 
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (hasMoreThenOneVerifiedUser()) {
-                    sendPushLockToAll();
-                } else {
-                    sendRequestToAll(); // FIXME: 20/10/2015
-                }
-            }
-        });
+        fab = (FloatingActionButton) findViewById(R.id.fab);
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -413,7 +464,7 @@ public class MyGroupActivity extends AppCompatActivity
         List<Object> participants = group.getParticipantsPhone();
         for (Object phoneObj : participants) {
             String phone = (String) phoneObj;
-            if(!phone.equals(adminPhone)) {
+            if (!phone.equals(adminPhone)) {
                 sendPush(phone, adminPhone, adminPhone, groupId, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
             }
         }
@@ -508,10 +559,17 @@ public class MyGroupActivity extends AppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            stopLockService(MyGroupActivity.this);
             return true;
         }
         if (id == R.id.search_badge) {
-            sendRequestToAll();
+            if(AppLockService.isServiceRunning()){
+                unlock();
+            }else {
+                lock();
+            }
+//           sendRequestToAll(); // FIXME: 17/11/2015
+            return true;
         }
 
 
@@ -598,10 +656,13 @@ public class MyGroupActivity extends AppCompatActivity
         searchAutoComplete.setOnEditorActionListener(new EditText.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-
-                closeSearchView();
-                return true;
-
+                CharSequence query = searchView.getQuery();
+                if (query == null || query.toString().equals("")) {
+                    closeSearchView();
+                    return true;
+                } else {
+                    return false;
+                }
             }
         });
     }

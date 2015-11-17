@@ -69,7 +69,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     protected String myNumber;
     private boolean isAdmin;
 
-    public static void addperson(UserItem user) {
+    public static void addPerson(UserItem user) {
         theList.add(user);
         adapterTodo.notifyDataSetChanged();
     }
@@ -88,7 +88,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                 b.setIcon(android.R.drawable.ic_dialog_alert);
                 final int positionToRemove = pos;
                 final String number = item.getNumber();
-                b.setMessage(item.getName() + " " + number);
+                b.setMessage(item.getDisplayName());
 
                 if (canRemove(item)) {
                     b.setPositiveButton("Remove from list", new DialogInterface.OnClickListener() {
@@ -136,8 +136,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         }
         return !isVerified(item);
     }
-
-
 
 
     private void sendPushNotification(UserItem item) {

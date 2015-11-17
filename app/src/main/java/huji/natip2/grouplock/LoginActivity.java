@@ -43,7 +43,7 @@ public class LoginActivity extends AppCompatActivity {
     static final String USER_CHANNEL_PREFIX = "t";
 
     final private String APPLICATION_KEY = "3117d877-3cbe-446f-95fd-7ff146ab25eb";
-    final private String DEAFULAT_PASS = "55555";
+    final private String DEFAULT_PASS = "55555";
     final private boolean VERIFICATION = false;
     final private String DEFAULT_COUNTRY_CODE = "+972";
 
@@ -125,8 +125,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1 && resultCode == Activity.RESULT_OK) {
             countryCodeChosen = data.getStringExtra(CountryCodeActivity.RESULT_CUONTRY_CODE);
-            Toast.makeText(this, "You selected country code: " + countryCodeChosen, Toast.LENGTH_LONG).show();
-
+            countryCodeField.setText("Choose code (chosen: " + countryCodeChosen + ")");
         }
     }
 
@@ -295,7 +294,7 @@ public class LoginActivity extends AppCompatActivity {
     private void signUpToParse(final String username) {
         ParseUser user = new ParseUser();
         user.setUsername(username);
-        user.setPassword(DEAFULAT_PASS);
+        user.setPassword(DEFAULT_PASS);
         user.put("status", UserStatus.HAS_APP.toString());
         user.put("countryCodeChosen", countryCodeChosen);
         user.signUpInBackground(new SignUpCallback() {
@@ -329,7 +328,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void logInExistingAccount(final String username) {
-        ParseUser.logInInBackground(username, DEAFULAT_PASS, new LogInCallback() {
+        ParseUser.logInInBackground(username, DEFAULT_PASS, new LogInCallback() {
             public void done(ParseUser user, com.parse.ParseException e) {
                 if (user != null) {
                     subscribeToPush(username);

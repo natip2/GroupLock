@@ -72,14 +72,13 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 addSenderToLocalListAndUpdateParseAndBroadcast();
                 break;
             case MyGroupActivity.PUSH_ADMIN_LOCK:
-                Intent lockIntent = new Intent(context.getApplicationContext(), LockScreen.class);
-                lockIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(lockIntent);
+//                MyGroupActivity.lock(context);// TODO: 17/11/2015
                 break;
-
-
         }
     }
+
+
+
     private Context mContext;
 
 
@@ -133,7 +132,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         UserFragment.adapterTodo.notifyDataSetChanged();
 
         for (UserItem item : UserFragment.theList) {
-            if (item.getStatus().equals(UserStatus.VERIFIED)){
+            if (item.getStatus().equals(UserStatus.VERIFIED)) {
                 int id = R.drawable.ic_search_white_24dp;
 //                FloatingActionButton fab = (FloatingActionButton) mContext.findViewById(R.id.fab);
 //                fab.setImageResource(id);
