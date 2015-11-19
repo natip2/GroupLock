@@ -20,9 +20,11 @@ import android.app.NotificationManager;
 import android.app.SearchManager;
 import android.app.SearchableInfo;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -33,6 +35,7 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -82,6 +85,7 @@ public class MyGroupActivity extends AppCompatActivity
     final static int PUSH_CODE_CONFIRM_NOTIFICATION = 10;
     final static int PUSH_CODE_UPDATE_LIST_FROM_PARSE = 11;
     final static int PUSH_CODE_QUIT = 12;
+    final static int PUSH_CODE_CONFIRM_UNLOCK = 13;
 
     static final String PUSH_CODE = "pushCode";
 
@@ -92,12 +96,23 @@ public class MyGroupActivity extends AppCompatActivity
     final static int PUSH_RESPONSE_CODE_ACCEPTED = 3;
     final static int PUSH_RESPONSE_CODE_REJECTED = 4;
     static final int PUSH_ADMIN_LOCK = 6;
+    static final int PUSH_ADMIN_UNLOCK = 7;
+    static final int PUSH_CODE_UNLOCK_ACCEPTED = 8;
+    static final int PUSH_CODE_UNLOCK_REJECTED = 9;
 
-    final static int PUSH_RESPONSE_CODE_NOT_SPECIFIED = 5;
     private static final int TO_RESPONSE_CONVERT_ADDITION = 3;
+
+    // broadcast receiver actions
+    static final int NO_ACTION = -1;
+    static final int ACTION_LOCK = 1;
+    static final int ACTION_UNLOCK = 2;
+    static final int ACTION_UPDATE = 3;
+    static final String ACTION_CODE_EXTRA = "actionCode";
+
     public Group adminGroup;
     private int pushCode = PUSH_CODE_NO_CODE;
 
+    private BroadcastReceiver receiver = null;
 
     public String adminPhone = null;
     public String groupId = null;
@@ -106,6 +121,9 @@ public class MyGroupActivity extends AppCompatActivity
     private ImageView closeBtn;
     private String countryCodeChosen = null;
     private FloatingActionButton fab;
+    private TextView actionBarTitle;
+    private boolean isLocked = false;
+    private int numAcceptedUnlock = 0; // TODO: 19/11/2015 make sure the variable is stable, i.e. not 0 after new intent (e.g. notification open)
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -139,17 +157,11 @@ public class MyGroupActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-//        if (iOweViewFragmentWithTag == null) {
-//            iOweViewFragmentWithTag = (ListViewFragment) getSupportFragmentManager().findFragmentByTag(Debt.I_OWE_TAG);
-//        }
-//        if (oweMeViewFragmentWithTag == null) {
-//            oweMeViewFragmentWithTag = (ListViewFragmentOweMe) getSupportFragmentManager().findFragmentByTag(Debt.OWE_ME_TAG);
-//        }
-        // Check if we have a logged in user
 
+        // Update view and status
+        isLocked = AppLockService.isServiceRunning();
+        updateView();
 
-//            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
-        updateFab();
         Intent intent = getIntent();
         if (intent.hasExtra(PUSH_CODE)) {
             pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
@@ -159,6 +171,9 @@ public class MyGroupActivity extends AppCompatActivity
                 case PUSH_CODE_ACCEPTED:
                 case PUSH_CODE_REJECTED:
                     sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
+                    break;
+                case PUSH_CODE_UNLOCK_ACCEPTED:
+                    incrementUnlockCount();
                     break;
                 case PUSH_CODE_NOT_SPECIFIED:
                     showConfirmDialog();
@@ -174,9 +189,23 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
+    private void incrementUnlockCount() {
+        numAcceptedUnlock++;
+        if (numAcceptedUnlock > 2 || adminGroup.countParticipants() < 3) {
+            unlock();
+            numAcceptedUnlock = 0;
+        }
+    }
+
+
     private void lockVerifiedAndRequestOthers() {
+        // Lock myself (group admin)
+        lock();
+
+        // Lock all verified
         for (UserItem item : UserFragment.theList) {
             if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
+                // Sends a push for a user to lock himself
                 sendPush(item.getNumber(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_LOCK);
             } else if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
                 sendSmsRequest(item);
@@ -186,32 +215,60 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
+    private void unlockLocked() {
+        // Unlock myself (group admin)
+        unlock();
+
+        // Unlock all locked
+        for (UserItem item : UserFragment.theList) {
+            if (item.getStatus().equals(UserStatus.LOCKED) && !item.getNumber().equals(adminPhone)) {
+                // Sends a push for a user to unlock himself
+                sendPush(item.getNumber(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_UNLOCK);
+            }
+        }
+    }
+
+    private void updateView() {
+        updateLockIcon();
+        updateFab();
+    }
+
+    private void updateLockIcon() {
+        if (isLocked) {
+            actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);
+        } else {
+            actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);
+        }
+    }
+
     private void lock() {
+        isLocked = true;
+        updateView();
+/*        TextView actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
+        actionBarTitle.setCompoundDrawablePadding(25);
+        actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);*/
 
-        TextView title = (TextView) findViewById(R.id.toolbar_title);
-        title.setCompoundDrawablePadding(25);
-        title.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);
-
-        startLockService(getApplicationContext());
+        startLockService();
     }
 
     private void unlock() {
+        isLocked = false;
+        updateView();
+/*        TextView actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
+        actionBarTitle.setCompoundDrawablePadding(25);
+        actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);*/
 
-        TextView title = (TextView) findViewById(R.id.toolbar_title);
-        title.setCompoundDrawablePadding(25);
-        title.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);
-
-        stopLockService(getApplicationContext());
+        stopLockService();
     }
 
-    static void startLockService(Context context) {
-        Intent lockServiceIntent = new Intent(context, AppLockService.class);
-        context.startService(lockServiceIntent);
+    private void startLockService() {
+        Intent lockServiceIntent = new Intent(MyGroupActivity.this, AppLockService.class);
+        startService(lockServiceIntent);
     }
 
-    static void stopLockService(Context context) {
-        Intent lockServiceIntent = new Intent(context, AppLockService.class);
-        context.stopService(lockServiceIntent);
+    private void stopLockService() {
+        Intent lockServiceIntent = new Intent(MyGroupActivity.this, AppLockService.class);
+        stopService(lockServiceIntent);
     }
 
     protected void updateFab() {
@@ -226,7 +283,15 @@ public class MyGroupActivity extends AppCompatActivity
             }
         }
 
-        if (numVerified > 0) {
+        if (isLocked) {
+            fab.setImageResource(R.drawable.ic_lock_open_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    unlockLocked();
+                }
+            });
+        } else if (numVerified > 0) {
             fab.setImageResource(R.drawable.ic_lock_white_24dp);
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -243,7 +308,7 @@ public class MyGroupActivity extends AppCompatActivity
                 }
             });
         } else {
-            fab.setImageResource(R.drawable.ic_search_white_24dp);
+            fab.setImageResource(R.drawable.ic_person_add_white_24dp);
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -422,14 +487,44 @@ public class MyGroupActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my_group);
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        toolbar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showUnlockPushDialog();
+            }
+        });
+
         setSupportActionBar(toolbar);
 
-        TextView title = (TextView) findViewById(R.id.toolbar_title);
-        title.setCompoundDrawablePadding(25);
-/*        Drawable d = getResources().getDrawable(R.drawable.ic_lock_open_white_36dp);
-        d.setColorFilter(R.color.gray_holo_dark,);*/
-        title.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);
+        actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
+        actionBarTitle.setCompoundDrawablePadding(25);
+
+        receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int actionCode = intent.getIntExtra(ACTION_CODE_EXTRA, NO_ACTION);
+                switch (actionCode) {
+                    case ACTION_LOCK:
+                        lock();
+                        break;
+
+                    case ACTION_UNLOCK:
+                        unlock();
+                        break;
+
+                    case ACTION_UPDATE:
+                        updateView();
+                        break;
+
+                    default:
+                        break;
+
+                }
+            }
+        };
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, new IntentFilter("huji.natip2.grouplock.MyGroupActivity"));
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
 
@@ -445,6 +540,24 @@ public class MyGroupActivity extends AppCompatActivity
         setupSearchView();
     }
 
+    private void showUnlockPushDialog() {
+        final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
+        b.setIcon(android.R.drawable.ic_dialog_alert);
+        String message = "Ask group for unlock?";
+        b.setMessage(message);
+        b.setPositiveButton("Join", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendUnlockRequest();
+            }
+        });
+        b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_REJECTED);
+            }
+        });
+        b.show();
+    }
+
     boolean isAdmin() {
         String myPhone = ParseUser.getCurrentUser().getUsername();
         return myPhone.equals(adminPhone);
@@ -456,6 +569,15 @@ public class MyGroupActivity extends AppCompatActivity
                 sendSmsRequest(item);
             } else if (item.getStatus().equals(UserStatus.HAS_APP)) {
                 sendPushNotification(item);
+            }
+        }
+    }
+
+    private void sendUnlockRequest() {
+        String myPhone = ParseUser.getCurrentUser().getUsername();
+        for (UserItem item : UserFragment.theList) {
+            if (item.getStatus().equals(UserStatus.LOCKED)) {
+                sendPush(item.getNumber(), myPhone, adminPhone, groupId, PUSH_CODE_CONFIRM_UNLOCK);
             }
         }
     }
@@ -558,17 +680,16 @@ public class MyGroupActivity extends AppCompatActivity
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            stopLockService(MyGroupActivity.this);
+/*        if (id == R.id.action_settings) {
             return true;
-        }
-        if (id == R.id.search_badge) {
-            if(AppLockService.isServiceRunning()){
+        }*/
+        if (id == R.id.send_to_all) {
+//           sendRequestToAll();// UNCOMMENT: 19/11/2015
+            if (isLocked) {
                 unlock();
-            }else {
+            } else {
                 lock();
             }
-//           sendRequestToAll(); // FIXME: 17/11/2015
             return true;
         }
 
@@ -690,7 +811,7 @@ public class MyGroupActivity extends AppCompatActivity
             searchField = SearchView.class.getDeclaredField("mSearchButton");
             searchField.setAccessible(true);
             ImageView searchButton = (ImageView) searchField.get(searchView);
-            searchButton.setImageResource(R.drawable.ic_search_white_24dp);
+            searchButton.setImageResource(R.drawable.ic_person_add_white_24dp);
 
             // Accessing the SearchAutoComplete
             int queryTextViewId = getResources().getIdentifier("android:id/search_src_text", null, null);

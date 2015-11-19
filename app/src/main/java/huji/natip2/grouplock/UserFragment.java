@@ -76,17 +76,16 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
 
     private void setAdapter() {
         //set the adapter
-        adapterTodo = new CustomAdapter(getActivity(), R.layout.user_list_item, theList);
+        adapterTodo = new UserAdapter(getActivity(), R.layout.user_list_item, theList);
         mListView.setEmptyView(mEmptyView);
         mListView.setAdapter(adapterTodo);
-        mListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public boolean onItemLongClick(AdapterView<?> av, View v, int pos, final long id) {
-                final UserItem item = theList.get(pos);
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                final UserItem item = theList.get(position);
                 final AlertDialog.Builder b = new AlertDialog.Builder(getActivity());
                 b.setIcon(android.R.drawable.ic_dialog_alert);
-                final int positionToRemove = pos;
+                final int positionToRemove = position;
                 final String number = item.getNumber();
                 b.setMessage(item.getDisplayName());
 
@@ -120,7 +119,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
 
                 }
                 b.show();
-                return true;
             }
         });
     }
@@ -136,6 +134,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         }
         return !isVerified(item);
     }
+
 
 
     private void sendPushNotification(UserItem item) {
@@ -232,7 +231,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         }
 
         // TODO: Change Adapter to display your content
-        mAdapter = new CustomAdapter(getActivity(), R.layout.user_list_item, theList);
+        mAdapter = new UserAdapter(getActivity(), R.layout.user_list_item, theList);
 
 //        mListView = (ListView) getView().findViewById(R.id.list_view_users);
 //        mListView.setAdapter(mAdapter);
@@ -295,6 +294,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
             ((TextView) emptyView).setText(emptyText);
         }
     }
+
 
     /**
      * This interface must be implemented by activities that contain this

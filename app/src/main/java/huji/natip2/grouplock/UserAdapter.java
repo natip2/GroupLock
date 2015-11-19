@@ -14,7 +14,7 @@ import com.parse.ParseUser;
 
 import java.util.ArrayList;
 
-public class CustomAdapter extends ArrayAdapter<UserItem> {
+public class UserAdapter extends ArrayAdapter<UserItem> {
 
     private final Context mContext;
 
@@ -86,7 +86,7 @@ public class CustomAdapter extends ArrayAdapter<UserItem> {
     }
 
 
-    public CustomAdapter(Context context, int resource, ArrayList<UserItem> arr) {
+    public UserAdapter(Context context, int resource, ArrayList<UserItem> arr) {
         super(context, resource, arr);
         mContext = context;
     }
