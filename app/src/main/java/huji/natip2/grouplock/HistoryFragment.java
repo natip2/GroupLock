@@ -118,7 +118,7 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
 
         mEmptyView = view.findViewById(R.id.empty_history_list);
 
-        mAdapter = new GroupAdapter(getActivity(), factory);
+        mAdapter = new GroupAdapter(getActivity(), factory);// TODO: 11/20/2015 loading... progress
 
         mListView.setEmptyView(mEmptyView);
 
@@ -155,7 +155,7 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
                 })
                 .setPositiveButton("Add to current", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
-                        ((MyGroupActivity) getActivity()).openFragment(MyGroupActivity.MAIN_FRAGMENT_ID);
+                        ((MyGroupActivity) getActivity()).chooseDrawerItem(R.id.nav_main, MyGroupActivity.MAIN_FRAGMENT_INDEX);
                         recreateGroup(group);
                     }
                 })
@@ -174,6 +174,7 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
             }
         }
         UserFragment.userAdapter.notifyDataSetChanged();
+        ((MyGroupActivity)getActivity()).updateFab();
     }
 
 

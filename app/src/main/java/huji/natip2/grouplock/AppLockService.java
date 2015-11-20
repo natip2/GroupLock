@@ -2,6 +2,8 @@ package huji.natip2.grouplock;
 
 import android.app.ActivityManager;
 import android.app.Service;
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -14,6 +16,8 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 public class AppLockService extends Service {
 
@@ -72,7 +76,7 @@ public class AppLockService extends Service {
 
                 }
             }).start();
-        }else{
+        } else {
             Toast.makeText(AppLockService.this, "Already running", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         }
         return super.onStartCommand(intent, flags, startId);
@@ -117,7 +121,7 @@ public class AppLockService extends Service {
 
         System.out.println();*/// REMOVE: 18/11/2015
         String activityOnTop = getForegroundApp();
-//        Toast.makeText(AppLockService.this, "top: "+activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+        Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         if (activityOnTop != null && activityOnTop.equals(APP_TO_LOCK)) {
             Intent lockIntent = new Intent(this, LockScreen.class); // TODO: 13/11/2015 context
             lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
@@ -128,19 +132,7 @@ public class AppLockService extends Service {
     private String getForegroundApp() {
 
         String topApp = null;
-        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-/*            UsageStatsManager usm = (UsageStatsManager) this.getSystemService(Context.USAGE_STATS_SERVICE);
-            long time = System.currentTimeMillis();
-            List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY,  time - 1000*1000, time);
-            if (appList != null && appList.size() > 0) {
-                 SortedMap<Long, UsageStats> mySortedMap = new TreeMap<Long, UsageStats>();
-                for (UsageStats usageStats : appList) {
-                    mySortedMap.put(usageStats.getLastTimeUsed(), usageStats);
-                }
-                if (mySortedMap != null && !mySortedMap.isEmpty()) {
-                    topApp = mySortedMap.get(mySortedMap.lastKey()).getPackageName();
-                }
-            }*/
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
             List<ActivityManager.RunningAppProcessInfo> appProcesses = activityManager.getRunningAppProcesses();
             List<String> foreground = new ArrayList<>();
@@ -149,14 +141,28 @@ public class AppLockService extends Service {
                     foreground.add(appProcess.processName);
                 }
             }
-            if(!foreground.isEmpty()) {
+            if (!foreground.isEmpty()) {
                 topApp = foreground.get(0);
+            }
+            if (topApp == null) {
+                UsageStatsManager usm = (UsageStatsManager) this.getSystemService(Context.USAGE_STATS_SERVICE);
+                long time = System.currentTimeMillis();
+                List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 1000, time);
+                if (appList != null && appList.size() > 0) {
+                    SortedMap<Long, UsageStats> mySortedMap = new TreeMap<Long, UsageStats>();
+                    for (UsageStats usageStats : appList) {
+                        mySortedMap.put(usageStats.getLastTimeUsed(), usageStats);
+                    }
+                    if (!mySortedMap.isEmpty()) {
+                        topApp = mySortedMap.get(mySortedMap.lastKey()).getPackageName();
+                    }
+                }
             }
         } else {
             ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
             // The first in the list of RunningTasks is always the foreground task.
             ActivityManager.RunningTaskInfo foregroundTaskInfo = am.getRunningTasks(1).get(0);
-            topApp = foregroundTaskInfo .topActivity.getPackageName();
+            topApp = foregroundTaskInfo.topActivity.getPackageName();
             /*PackageManager pm = getPackageManager();
             PackageInfo foregroundAppPackageInfo;
             try {

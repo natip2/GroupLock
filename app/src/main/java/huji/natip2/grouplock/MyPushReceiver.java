@@ -118,6 +118,8 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                     i++;
                 }
                 UserFragment.userAdapter.notifyDataSetChanged();
+                broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UPDATE);
+                broadcaster.sendBroadcast(broadcastIntent);
             }
         });
     }
@@ -151,7 +153,8 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
             UserFragment.theList.add(senderItem);
         }
         UserFragment.userAdapter.notifyDataSetChanged();
-
+        broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UPDATE);
+        broadcaster.sendBroadcast(broadcastIntent);
 
         // add current person to parse
         ParseQuery<Group> query = Group.getQuery();
@@ -173,7 +176,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
 
     public void showJoinNotification(Context context) {
-        String title = "Join to the group?";
+        String title = "Join the group?";
         String text = getNameByPhone(adminPhone) + " invites you";
 
         // prepare intent which is triggered if the

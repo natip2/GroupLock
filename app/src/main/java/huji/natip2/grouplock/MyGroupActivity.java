@@ -84,7 +84,7 @@ public class MyGroupActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, HistoryFragment.OnFragmentInteractionListener, UserFragment.OnFragmentInteractionListener {
 
 
-    final static int MAIN_FRAGMENT_ID = 0;
+    final static int MAIN_FRAGMENT_INDEX = 0;
 
     final static int PUSH_CODE_CONFIRM_NOTIFICATION = 100;
     final static int PUSH_CODE_UPDATE_LIST_FROM_PARSE = 101;
@@ -133,6 +133,7 @@ public class MyGroupActivity extends AppCompatActivity
     private boolean isLocked = false;
     private int unlockAcceptedCount = 0; // TODO: 19/11/2015 make sure the variable is stable, i.e. not 0 after new intent (e.g. notification open)
     private NavigationView navigationView;
+    private Toolbar toolbar;
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -240,16 +241,23 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private void updateView() {
+    void updateView() {
         updateLockIcon();
         updateFab();
     }
 
-    private void updateLockIcon() {
+    void updateLockIcon() {
         if (isLocked) {
             actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);
+            toolbar.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showUnlockPushDialog();
+                }
+            });
         } else {
             actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);
+            toolbar.setOnClickListener(null);
         }
     }
 
@@ -334,7 +342,7 @@ public class MyGroupActivity extends AppCompatActivity
     private void showConfirmDialog() {
         final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
         b.setIcon(android.R.drawable.ic_dialog_alert);
-        String message = "Join to the group?\n\t" + getNameByPhone(getApplicationContext(), adminPhone) + " invites you";
+        String message = "Join the group?\n\t" + getNameByPhone(getApplicationContext(), adminPhone) + " invites you";
         b.setMessage(message);
         b.setPositiveButton("Join", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
@@ -532,14 +540,7 @@ public class MyGroupActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my_group);
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        toolbar.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showUnlockPushDialog();
-            }
-        });
-
+        toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
@@ -594,16 +595,12 @@ public class MyGroupActivity extends AppCompatActivity
         b.setIcon(android.R.drawable.ic_dialog_alert);
         String message = "Ask group for unlock?";
         b.setMessage(message);
-        b.setPositiveButton("Join", new DialogInterface.OnClickListener() {
+        b.setPositiveButton("Send", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 sendUnlockRequest();
             }
         });
-        b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_REJECTED);
-            }
-        });
+        b.setNegativeButton("Cancel", null);
         b.show();
     }
 
@@ -770,9 +767,9 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     Fragment chooseFragmentById(int id) {
-        if (id == R.id.nav_camara) {
+        if (id == R.id.nav_main) {
             return UserFragment.newInstance("A", "B");
-        } else if (id == R.id.nav_gallery) {
+        } else if (id == R.id.nav_history) {
             return HistoryFragment.newInstance("C", "D");
         } else if (id == R.id.nav_slideshow) {
 
@@ -787,8 +784,8 @@ public class MyGroupActivity extends AppCompatActivity
         return null;
     }
 
-    void chooseDrawerItem(int id){
-        navigationView.getMenu().getItem(id).setChecked(true);
+    void chooseDrawerItem(int id, int index){
+        navigationView.getMenu().getItem(index).setChecked(true);
         openFragment(chooseFragmentById(id));
     }
 
