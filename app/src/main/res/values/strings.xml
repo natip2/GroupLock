@@ -67,4 +67,5 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="app_slogan">Making social life a reality</string>
     <string name="contact_icon_desc">Contact icon</string>
+    <string name="group_icon_desc">group icon</string>
 </resources>

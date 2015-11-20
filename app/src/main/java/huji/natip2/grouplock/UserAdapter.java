@@ -46,39 +46,41 @@ public class UserAdapter extends ArrayAdapter<UserItem> {
         phonePlace.setCompoundDrawablePadding(25);
 
         UserStatus stat = item.getStatus();
-        switch (stat) {
-            case DOES_NOT_HAVE_APP: {
+        if (stat != null) {
+            switch (stat) {
+                case DOES_NOT_HAVE_APP: {
 //                phonePlace.setTextColor(Color.RED);
-                phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_phonelink_erase_black_24dp, 0, 0, 0);
-                break;
-            }
-            case HAS_APP: {
+                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_phonelink_erase_black_24dp, 0, 0, 0);
+                    break;
+                }
+                case HAS_APP: {
 //                phonePlace.setTextColor(Color.DKGRAY);
-                phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_phonelink_ring_black_24dp, 0, 0, 0);
-                break;
-            }
-            case LOCKED: {
+                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_phonelink_ring_black_24dp, 0, 0, 0);
+                    break;
+                }
+                case LOCKED: {
 //                phonePlace.setTextColor(Color.BLUE);
-                phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_lock_outline_black_24dp, 0, 0, 0);
-                break;
-            }
-            case DENIED: {
+                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_lock_outline_black_24dp, 0, 0, 0);
+                    break;
+                }
+                case DENIED: {
 //                phonePlace.setTextColor(Color.YELLOW);
-                phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_block_black_24dp, 0, 0, 0);
-                break;
-            }
-            case VERIFIED: {
+                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_block_black_24dp, 0, 0, 0);
+                    break;
+                }
+                case VERIFIED: {
 //                phonePlace.setTextColor(Color.GRAY);
-                phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_lock_open_black_24dp, 0, 0, 0);
-                break;
-            }
-            case WAIT_FOR_VERIFICATION: {
+                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_lock_open_black_24dp, 0, 0, 0);
+                    break;
+                }
+                case WAIT_FOR_VERIFICATION: {
 //                phonePlace.setTextColor(Color.CYAN);
-                phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_hourglass_empty_black_24dp, 0, 0, 0);
-                break;
-            }
-            default: {
-                System.out.println("there is item with no status");
+                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_hourglass_empty_black_24dp, 0, 0, 0);
+                    break;
+                }
+                default: {
+                    // no status
+                }
             }
         }
         return view;

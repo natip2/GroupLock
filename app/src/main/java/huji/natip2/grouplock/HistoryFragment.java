@@ -1,6 +1,8 @@
 package huji.natip2.grouplock;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -8,9 +10,15 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+
+import com.parse.ParseQuery;
+import com.parse.ParseQueryAdapter;
+import com.parse.ParseUser;
+
+import java.util.ArrayList;
+import java.util.List;
 
 //import huji.natip2.grouplock.dummy.DummyContent;
 
@@ -45,7 +53,8 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
      * The Adapter which will be used to populate the ListView/GridView with
      * Views.
      */
-    private ListAdapter mAdapter;
+    private GroupAdapter mAdapter;
+    private View mEmptyView;
 
     // TODO: Rename and change types of parameters
     public static HistoryFragment newInstance(String param1, String param2) {
@@ -73,6 +82,7 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
 
+
         // TODO: Change Adapter to display your content
 //        mAdapter = new ArrayAdapter<DummyContent.DummyItem>(getActivity(),
 //                android.R.layout.simple_list_item_1, android.R.id.text1, DummyContent.ITEMS);
@@ -84,13 +94,99 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
         View view = inflater.inflate(R.layout.fragment_history_list, container, false);
 
         // Set the adapter
-        mListView = (ListView) view.findViewById(android.R.id.list);
-        ((AdapterView<ListAdapter>) mListView).setAdapter(mAdapter);
+        mListView = (ListView) view.findViewById(R.id.list_view_groups);
+
+        // Set up the Parse query to use in the adapter
+        ParseQueryAdapter.QueryFactory<Group> factory = new ParseQueryAdapter.QueryFactory<Group>() {
+            public ParseQuery<Group> create() {
+                String myPhone = ParseUser.getCurrentUser().getUsername();
+
+                ParseQuery<Group> participantsQuery = Group.getQuery();
+                participantsQuery.whereEqualTo(Group.KEY_PARTICIPANTS_PHONE, myPhone);
+                ParseQuery<Group> adminQuery = Group.getQuery();
+                adminQuery.whereEqualTo(Group.KEY_ADMIN, myPhone);
+
+                List<ParseQuery<Group>> queries = new ArrayList<>();
+                queries.add(participantsQuery);
+                queries.add(adminQuery);
+
+                ParseQuery<Group> mainQuery = ParseQuery.or(queries);
+                mainQuery.orderByDescending("createdAt");
+                return mainQuery;
+            }
+        };
+
+        mEmptyView = view.findViewById(R.id.empty_history_list);
+
+        mAdapter = new GroupAdapter(getActivity(), factory);
+
+        mListView.setEmptyView(mEmptyView);
+
+        mListView.setAdapter(mAdapter);
 
         // Set OnItemClickListener so we can be notified on item clicks
-        mListView.setOnItemClickListener(this);
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view,
+                                    int position, long id) {
+                Group group = mAdapter.getItem(position);
+                viewGroup(group);
+            }
+        });
+
 
         return view;
+    }
+
+    private void viewGroup(final Group group) {
+        // TODO: 19/11/2015 show group participants, images, locked times (from - to). and maybe connection history: joined, locked, left
+        // TODO: 19/11/2015 chart that shows app usage over time
+
+        ArrayList<UserItem> users = createUserList(group);
+        UserAdapter participantAdapter = new UserAdapter(getActivity(), R.layout.user_list_item, users);
+
+        (new AlertDialog.Builder(getActivity()))
+                .setTitle("Admin: " + MyGroupActivity.getDisplayName(getActivity(), group.getAdmin()))
+                .setAdapter(participantAdapter, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // TODO: 19/11/2015 call, sms. (social status - num of groups participated in)
+                    }
+                })
+                .setPositiveButton("Add to current", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        ((MyGroupActivity) getActivity()).openFragment(MyGroupActivity.MAIN_FRAGMENT_ID);
+                        recreateGroup(group);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void recreateGroup(Group group) {
+        List<Object> participantsPhone = group.getParticipantsPhone();
+        for (Object phoneObj : participantsPhone) {
+            String phone = (String) phoneObj;
+            String name = MyGroupActivity.getNameByPhone(getActivity(), phone);
+            UserItem newItem = new UserItem(name, phone, MyGroupActivity.doesUserHaveApp(phone));
+            if (!UserFragment.theList.contains(newItem)) {
+                UserFragment.theList.add(newItem);
+            }
+        }
+        UserFragment.userAdapter.notifyDataSetChanged();
+    }
+
+
+    private ArrayList<UserItem> createUserList(Group group) {
+        ArrayList<UserItem> users = new ArrayList<>();
+        List<Object> participantsPhone = group.getParticipantsPhone();
+        for (Object phoneObj : participantsPhone) {
+            String phone = (String) phoneObj;
+            String name = MyGroupActivity.getNameByPhone(getActivity(), phone);
+            UserItem newItem = new UserItem(name, phone, null);
+            users.add(newItem);
+        }
+        return users;
     }
 
     @Override
@@ -109,6 +205,7 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
         super.onDetach();
         mListener = null;
     }
+
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {

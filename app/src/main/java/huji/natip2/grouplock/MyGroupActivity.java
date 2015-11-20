@@ -21,6 +21,7 @@ import android.app.SearchManager;
 import android.app.SearchableInfo;
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -28,6 +29,7 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.support.design.widget.FloatingActionButton;
@@ -82,10 +84,12 @@ public class MyGroupActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, HistoryFragment.OnFragmentInteractionListener, UserFragment.OnFragmentInteractionListener {
 
 
-    final static int PUSH_CODE_CONFIRM_NOTIFICATION = 10;
-    final static int PUSH_CODE_UPDATE_LIST_FROM_PARSE = 11;
-    final static int PUSH_CODE_QUIT = 12;
-    final static int PUSH_CODE_CONFIRM_UNLOCK = 13;
+    final static int MAIN_FRAGMENT_ID = 0;
+
+    final static int PUSH_CODE_CONFIRM_NOTIFICATION = 100;
+    final static int PUSH_CODE_UPDATE_LIST_FROM_PARSE = 101;
+    final static int PUSH_CODE_QUIT = 102;
+    final static int PUSH_CODE_CONFIRM_UNLOCK = 103;
 
     static final String PUSH_CODE = "pushCode";
 
@@ -99,6 +103,9 @@ public class MyGroupActivity extends AppCompatActivity
     static final int PUSH_ADMIN_UNLOCK = 7;
     static final int PUSH_CODE_UNLOCK_ACCEPTED = 8;
     static final int PUSH_CODE_UNLOCK_REJECTED = 9;
+    static final int PUSH_CODE_UNLOCK_NOT_SPECIFIED = 10;
+    static final int PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED = 11;
+    static final int PUSH_RESPONSE_CODE_UNLOCK_REJECTED = 12;
 
     private static final int TO_RESPONSE_CONVERT_ADDITION = 3;
 
@@ -107,6 +114,7 @@ public class MyGroupActivity extends AppCompatActivity
     static final int ACTION_LOCK = 1;
     static final int ACTION_UNLOCK = 2;
     static final int ACTION_UPDATE = 3;
+    static final int ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT = 4;
     static final String ACTION_CODE_EXTRA = "actionCode";
 
     public Group adminGroup;
@@ -123,7 +131,8 @@ public class MyGroupActivity extends AppCompatActivity
     private FloatingActionButton fab;
     private TextView actionBarTitle;
     private boolean isLocked = false;
-    private int numAcceptedUnlock = 0; // TODO: 19/11/2015 make sure the variable is stable, i.e. not 0 after new intent (e.g. notification open)
+    private int unlockAcceptedCount = 0; // TODO: 19/11/2015 make sure the variable is stable, i.e. not 0 after new intent (e.g. notification open)
+    private NavigationView navigationView;
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -166,17 +175,20 @@ public class MyGroupActivity extends AppCompatActivity
         if (intent.hasExtra(PUSH_CODE)) {
             pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
             adminPhone = intent.getStringExtra("adminPhone");
+            String senderPhone = intent.getStringExtra("adminPhone");
             groupId = intent.getStringExtra("groupId");
             switch (pushCode) {
                 case PUSH_CODE_ACCEPTED:
                 case PUSH_CODE_REJECTED:
-                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
-                    break;
                 case PUSH_CODE_UNLOCK_ACCEPTED:
-                    incrementUnlockCount();
+                case PUSH_CODE_UNLOCK_REJECTED:
+                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
                     break;
                 case PUSH_CODE_NOT_SPECIFIED:
                     showConfirmDialog();
+                    break;
+                case PUSH_CODE_UNLOCK_NOT_SPECIFIED:
+                    showUnlockConfirmDialog(senderPhone);
                     break;
 
             }
@@ -189,11 +201,11 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private void incrementUnlockCount() {
-        numAcceptedUnlock++;
-        if (numAcceptedUnlock > 2 || adminGroup.countParticipants() < 3) {
+    private void incrementUnlockAcceptedCount() {
+        unlockAcceptedCount++;
+        if (unlockAcceptedCount > 2 || adminGroup.countParticipants() < 3) {
             unlock();
-            numAcceptedUnlock = 0;
+            unlockAcceptedCount = 0;
         }
     }
 
@@ -322,7 +334,7 @@ public class MyGroupActivity extends AppCompatActivity
     private void showConfirmDialog() {
         final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
         b.setIcon(android.R.drawable.ic_dialog_alert);
-        String message = "Join to the group?\n\t" + getNameByPhone(adminPhone) + " invites you";
+        String message = "Join to the group?\n\t" + getNameByPhone(getApplicationContext(), adminPhone) + " invites you";
         b.setMessage(message);
         b.setPositiveButton("Join", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
@@ -332,6 +344,24 @@ public class MyGroupActivity extends AppCompatActivity
         b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 sendPushResponseToAdmin(PUSH_RESPONSE_CODE_REJECTED);
+            }
+        });
+        b.show();
+    }
+
+    private void showUnlockConfirmDialog(String senderPhone) {
+        final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
+        b.setIcon(android.R.drawable.ic_dialog_alert);
+        String message = getNameByPhone(getApplicationContext(), senderPhone) + " wants to unlock himself?";
+        b.setMessage(message);
+        b.setPositiveButton("Allow", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED);
+            }
+        });
+        b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_UNLOCK_REJECTED);
             }
         });
         b.show();
@@ -352,17 +382,16 @@ public class MyGroupActivity extends AppCompatActivity
             Toast.makeText(MyGroupActivity.this, "Contact bad phone number", Toast.LENGTH_SHORT).show();
             return;
         }
-        Toast.makeText(MyGroupActivity.this, "NAME" + name + " num" + phoneNumber, Toast.LENGTH_SHORT).show();
         UserItem user = new UserItem(name, phoneNumber, doesUserHaveApp(phoneNumber));
         UserFragment.addPerson(user);
         return;
     }
 
-    private UserStatus doesUserHaveApp(String phoneNumber) {
+    static UserStatus doesUserHaveApp(String phoneNumber) {
         return userExist(phoneNumber) ? UserStatus.HAS_APP : UserStatus.DOES_NOT_HAVE_APP;
     }
 
-    private boolean userExist(String phone) {
+    static boolean userExist(String phone) {
         ParseQuery<ParseUser> q = ParseUser.getQuery();
         q.whereEqualTo("username", phone);
         try {
@@ -477,9 +506,24 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private String getNameByPhone(String phone) {
-        return phone;
-    }// TODO: 16/10/2015
+    static String getNameByPhone(Context context, String phoneNumber) {
+        ContentResolver cr = context.getContentResolver();
+        Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber));
+        Cursor cursor = cr.query(uri, new String[]{ContactsContract.PhoneLookup.DISPLAY_NAME}, null, null, null);
+        if (cursor == null) {
+            return null;
+        }
+        String contactName = null;
+        if (cursor.moveToFirst()) {
+            contactName = cursor.getString(cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME));
+        }
+
+        if (!cursor.isClosed()) {
+            cursor.close();
+        }
+
+        return contactName;
+    }
 
     public static final int PICK_CONTACT = 1;
 
@@ -518,6 +562,10 @@ public class MyGroupActivity extends AppCompatActivity
                         updateView();
                         break;
 
+                    case ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT:
+                        incrementUnlockAcceptedCount();
+                        break;
+
                     default:
                         break;
 
@@ -534,8 +582,9 @@ public class MyGroupActivity extends AppCompatActivity
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
-        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+
         onNavigationItemSelected(null);
         setupSearchView();
     }
@@ -649,7 +698,7 @@ public class MyGroupActivity extends AppCompatActivity
         adminGroup.putParticipant(adminPhone, UserStatus.VERIFIED);
         adminGroup.saveInBackground();
         UserFragment.theList.add(new UserItem(getString(R.string.group_admin_name), adminPhone, UserStatus.VERIFIED));
-        UserFragment.adapterTodo.notifyDataSetChanged();
+        UserFragment.userAdapter.notifyDataSetChanged();
     }
 
 
@@ -707,28 +756,43 @@ public class MyGroupActivity extends AppCompatActivity
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
-        Fragment fragment = null;
+        Fragment fragment;
         if (item == null) {
             fragment = UserFragment.newInstance("A", "B");
         } else {
             // Handle navigation view item clicks here.
-            int id = item.getItemId();
+            fragment = chooseFragmentById(item.getItemId());
 //        Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content), item.getTitle() + " clicked", Snackbar.LENGTH_SHORT);
-            if (id == R.id.nav_camara) {
-                fragment = UserFragment.newInstance("A", "B");
-            } else if (id == R.id.nav_gallery) {
-                fragment = HistoryFragment.newInstance("C", "D");
-            } else if (id == R.id.nav_slideshow) {
 
-            } else if (id == R.id.nav_manage) {
-
-
-            } else if (id == R.id.nav_share) {
-
-            } else if (id == R.id.nav_send) {
-
-            }
         }
+        openFragment(fragment);
+        return true;
+    }
+
+    Fragment chooseFragmentById(int id) {
+        if (id == R.id.nav_camara) {
+            return UserFragment.newInstance("A", "B");
+        } else if (id == R.id.nav_gallery) {
+            return HistoryFragment.newInstance("C", "D");
+        } else if (id == R.id.nav_slideshow) {
+
+        } else if (id == R.id.nav_manage) {
+
+
+        } else if (id == R.id.nav_share) {
+
+        } else if (id == R.id.nav_send) {
+
+        }
+        return null;
+    }
+
+    void chooseDrawerItem(int id){
+        navigationView.getMenu().getItem(id).setChecked(true);
+        openFragment(chooseFragmentById(id));
+    }
+
+    void openFragment(Fragment fragment) {
         if (fragment != null) {
             FragmentManager fragmentManager = getSupportFragmentManager();
             FragmentTransaction transaction = fragmentManager.beginTransaction();
@@ -741,7 +805,6 @@ public class MyGroupActivity extends AppCompatActivity
             drawer.closeDrawer(GravityCompat.START);
 
         }
-        return true;
     }
 
     @Override
@@ -847,5 +910,15 @@ public class MyGroupActivity extends AppCompatActivity
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    static String getDisplayName(Context context, String phone) {
+        String name = getNameByPhone(context, phone);
+        if (name == null) {
+            name = phone;
+        } else {
+            name += " (" + phone + ")";
+        }
+        return name;
     }
 }

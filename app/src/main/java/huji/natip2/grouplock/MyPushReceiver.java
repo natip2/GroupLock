@@ -21,7 +21,6 @@ import com.parse.SaveCallback;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -40,6 +39,8 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
     private Intent broadcastIntent = new Intent("huji.natip2.grouplock.MyGroupActivity");
     private LocalBroadcastManager broadcaster;
+
+    private Context mContext;
 
 
     @Override
@@ -82,6 +83,10 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
             case MyGroupActivity.PUSH_RESPONSE_CODE_REJECTED:
                 addSenderToLocalListAndUpdateParseAndBroadcast();
                 break;
+            case MyGroupActivity.PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED:
+                broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT);
+                broadcaster.sendBroadcast(broadcastIntent);
+                break;
             case MyGroupActivity.PUSH_ADMIN_LOCK:
                 broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_LOCK);
                 broadcaster.sendBroadcast(broadcastIntent);
@@ -94,17 +99,13 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
     }
 
 
-
-    private Context mContext;
-
-
     private void updateLocalListFromParse() {
         ParseQuery<Group> query = Group.getQuery();
         query.whereEqualTo("objectId", groupId);
         query.getFirstInBackground(new GetCallback<Group>() {
             @Override
             public void done(Group group, ParseException e) {
-                removeVerifiedUsers(UserFragment.theList);
+                removeVerifiedUsers();
                 List<Object> participantsPhone = group.getParticipantsPhone();
                 List<Object> participantsStatus = group.getParticipantsStatus();
                 int i = 0;
@@ -116,13 +117,17 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                     UserFragment.theList.add(newItem);
                     i++;
                 }
-                UserFragment.adapterTodo.notifyDataSetChanged();
+                UserFragment.userAdapter.notifyDataSetChanged();
             }
         });
     }
 
-    private void removeVerifiedUsers(ArrayList<UserItem> theList) {
-        // TODO: 20/10/2015
+    private void removeVerifiedUsers() {
+        for (UserItem item : UserFragment.theList) {
+            if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
+                UserFragment.theList.remove(item);
+            }
+        }
     }
 
 
@@ -145,7 +150,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         if (!isFound) {
             UserFragment.theList.add(senderItem);
         }
-        UserFragment.adapterTodo.notifyDataSetChanged();
+        UserFragment.userAdapter.notifyDataSetChanged();
 
 
         // add current person to parse
@@ -228,8 +233,8 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
     }
 
     public void showUnlockNotification(Context context) {
-        String title = getNameByPhone(senderPhone) + " wants to unlock?";
-        String text = getNameByPhone(adminPhone) + " invites you";
+        String title = getNameByPhone(senderPhone) + " wants to unlock himself?";
+        String text = "Your agreement is necessary";
 
         // prepare intent which is triggered if the
         // notification is selected
@@ -237,8 +242,9 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Intent intent = new Intent(context, MyGroupActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         // use System.currentTimeMillis() to have a unique ID for the pending intent
-        intent.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_NOT_SPECIFIED);
+        intent.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_NOT_SPECIFIED);
         intent.putExtra("adminPhone", adminPhone);
+        intent.putExtra("senderPhone", senderPhone);
         intent.putExtra("groupId", groupId);
         intent.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
         intent.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
@@ -247,7 +253,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
         Intent intent2 = new Intent(context, MyGroupActivity.class);
         intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent2.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK);
+        intent2.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_ACCEPTED);
         intent2.putExtra("adminPhone", adminPhone);
         intent2.putExtra("groupId", groupId);
         intent2.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
@@ -258,7 +264,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
         Intent intent3 = new Intent(context, MyGroupActivity.class);
         intent3.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent3.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_REJECTED);
+        intent3.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_REJECTED);
         intent3.putExtra("adminPhone", adminPhone);
         intent3.putExtra("groupId", groupId);
         intent3.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);

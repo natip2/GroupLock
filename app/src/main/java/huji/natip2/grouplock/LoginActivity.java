@@ -143,9 +143,6 @@ public class LoginActivity extends AppCompatActivity {
         //add row to instalation
         ParseInstallation installation = ParseInstallation.getCurrentInstallation();
         installation.put("username", currentUser.getUsername());
-        Toast.makeText(getApplicationContext(),
-                "user exist add instalation user name -> " + currentUser.getUsername()
-                , Toast.LENGTH_LONG).show();
         installation.saveInBackground();
     }
 
@@ -300,7 +297,7 @@ public class LoginActivity extends AppCompatActivity {
         user.signUpInBackground(new SignUpCallback() {
             public void done(com.parse.ParseException e) {
                 if (e == null) {
-                    Toast.makeText(getApplicationContext(), "New user name " + username
+                    Toast.makeText(getApplicationContext(), "New user: " + username
                             , Toast.LENGTH_LONG).show();
                     subscribeToPush(username);
                     Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
