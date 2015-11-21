@@ -17,6 +17,7 @@ package huji.natip2.grouplock;
 
 import android.app.AlertDialog;
 import android.app.NotificationManager;
+import android.app.ProgressDialog;
 import android.app.SearchManager;
 import android.app.SearchableInfo;
 import android.app.Service;
@@ -32,6 +33,7 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
@@ -134,12 +136,43 @@ public class MyGroupActivity extends AppCompatActivity
     private int unlockAcceptedCount = 0; // TODO: 19/11/2015 make sure the variable is stable, i.e. not 0 after new intent (e.g. notification open)
     private NavigationView navigationView;
     private Toolbar toolbar;
+    private ProgressDialog progressDialog;
+    private boolean isShowProgress = false;
 
     @Override
     protected void onNewIntent(Intent intent) {
         setIntent(intent);
+        Toast.makeText(MyGroupActivity.this, "New intent", Toast.LENGTH_SHORT).show();
         if (intent.hasExtra("countryCodeChosen")) {
             countryCodeChosen = intent.getStringExtra("countryCodeChosen");
+        }
+        if (intent.hasExtra(PUSH_CODE)) {
+            pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
+            adminPhone = intent.getStringExtra("adminPhone");
+            String senderPhone = intent.getStringExtra("adminPhone");
+            groupId = intent.getStringExtra("groupId");
+            switch (pushCode) {
+                case PUSH_CODE_ACCEPTED:
+                    isShowProgress = true;
+                case PUSH_CODE_REJECTED:
+                case PUSH_CODE_UNLOCK_ACCEPTED:
+                case PUSH_CODE_UNLOCK_REJECTED:
+                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
+                    break;
+                case PUSH_CODE_NOT_SPECIFIED:
+                    showConfirmDialog();
+                    break;
+                case PUSH_CODE_UNLOCK_NOT_SPECIFIED:
+                    showUnlockConfirmDialog(senderPhone);
+                    break;
+
+            }
+        }
+        if (adminPhone == null || isAdmin()) {
+            // TODO: 20/10/2015 change to send :
+            fab.setVisibility(View.VISIBLE);
+        } else {
+            fab.setVisibility(View.GONE);
         }
         if (intent.hasExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_TAG)) {
             String tag = intent.getStringExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_TAG);
@@ -167,38 +200,23 @@ public class MyGroupActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        Toast.makeText(MyGroupActivity.this, "On resume", Toast.LENGTH_SHORT).show();
 
         // Update view and status
         isLocked = AppLockService.isServiceRunning();
         updateView();
 
         Intent intent = getIntent();
-        if (intent.hasExtra(PUSH_CODE)) {
-            pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
-            adminPhone = intent.getStringExtra("adminPhone");
-            String senderPhone = intent.getStringExtra("adminPhone");
-            groupId = intent.getStringExtra("groupId");
-            switch (pushCode) {
-                case PUSH_CODE_ACCEPTED:
-                case PUSH_CODE_REJECTED:
-                case PUSH_CODE_UNLOCK_ACCEPTED:
-                case PUSH_CODE_UNLOCK_REJECTED:
-                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
-                    break;
-                case PUSH_CODE_NOT_SPECIFIED:
-                    showConfirmDialog();
-                    break;
-                case PUSH_CODE_UNLOCK_NOT_SPECIFIED:
-                    showUnlockConfirmDialog(senderPhone);
-                    break;
 
-            }
-        }
-        if (adminPhone == null || isAdmin()) {
-            // TODO: 20/10/2015 change to send :
-            fab.setVisibility(View.VISIBLE);
-        } else {
-            fab.setVisibility(View.GONE);
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        if (isShowProgress) {
+            isShowProgress = false;
+            progressDialog = ProgressDialog.show(MyGroupActivity.this, null,
+                    "Loading group", true, false);
         }
     }
 
@@ -215,16 +233,31 @@ public class MyGroupActivity extends AppCompatActivity
         // Lock myself (group admin)
         lock();
 
+        int numLocked = 0;
+        int numNotiSent = 0;
+        int numSMSSent = 0;
         // Lock all verified
         for (UserItem item : UserFragment.theList) {
             if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
                 // Sends a push for a user to lock himself
                 sendPush(item.getNumber(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_LOCK);
+                numLocked++;
             } else if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
                 sendSmsRequest(item);
+                numSMSSent++;
             } else if (item.getStatus().equals(UserStatus.HAS_APP)) {
                 sendPushNotification(item);
+                numNotiSent++;
             }
+        }
+        if (numLocked > 0) {
+            Toast.makeText(MyGroupActivity.this, numLocked + " users locked", Toast.LENGTH_SHORT).show();
+        }
+        if (numNotiSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numNotiSent + " request(s) sent", Toast.LENGTH_SHORT).show();
+        }
+        if (numSMSSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numSMSSent + " SMS invite(s) sent", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -232,18 +265,26 @@ public class MyGroupActivity extends AppCompatActivity
         // Unlock myself (group admin)
         unlock();
 
+        int numUnlocked = 0;
         // Unlock all locked
         for (UserItem item : UserFragment.theList) {
             if (item.getStatus().equals(UserStatus.LOCKED) && !item.getNumber().equals(adminPhone)) {
                 // Sends a push for a user to unlock himself
                 sendPush(item.getNumber(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_UNLOCK);
+                numUnlocked++;
             }
+        }
+        if (numUnlocked > 0) {
+            Toast.makeText(MyGroupActivity.this, numUnlocked + " users unlocked", Toast.LENGTH_SHORT).show();
         }
     }
 
     void updateView() {
         updateLockIcon();
         updateFab();
+        if (progressDialog != null) {
+            progressDialog.dismiss();
+        }
     }
 
     void updateLockIcon() {
@@ -290,6 +331,7 @@ public class MyGroupActivity extends AppCompatActivity
         Intent lockServiceIntent = new Intent(MyGroupActivity.this, AppLockService.class);
         stopService(lockServiceIntent);
     }
+
 
     protected void updateFab() {
         int numVerified = 0;
@@ -345,7 +387,10 @@ public class MyGroupActivity extends AppCompatActivity
         String message = "Join the group?\n\t" + getNameByPhone(getApplicationContext(), adminPhone) + " invites you";
         b.setMessage(message);
         b.setPositiveButton("Join", new DialogInterface.OnClickListener() {
+
             public void onClick(DialogInterface dialog, int whichButton) {
+                progressDialog = ProgressDialog.show(MyGroupActivity.this, null,
+                        "Loading group", true, false);
                 sendPushResponseToAdmin(PUSH_RESPONSE_CODE_ACCEPTED);
             }
         });
@@ -610,12 +655,26 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     private void sendRequestToAll() {
+        if (adminPhone == null) {
+            adminPhone = ParseUser.getCurrentUser().getUsername();
+            createNewTable();
+        }
+        int numNotiSent = 0;
+        int numSMSSent = 0;
         for (UserItem item : UserFragment.theList) {
             if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
                 sendSmsRequest(item);
+                numSMSSent++;
             } else if (item.getStatus().equals(UserStatus.HAS_APP)) {
                 sendPushNotification(item);
+                numNotiSent++;
             }
+        }
+        if (numNotiSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numNotiSent + " request(s) sent", Toast.LENGTH_SHORT).show();
+        }
+        if (numSMSSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numSMSSent + " SMS invite(s) sent", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -640,10 +699,6 @@ public class MyGroupActivity extends AppCompatActivity
 
     private void sendPushNotification(UserItem item) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
-        if (adminPhone == null) {
-            adminPhone = myPhone;
-            createNewTable();
-        }
         sendPush(item.getNumber(), myPhone, adminPhone, groupId, PUSH_CODE_CONFIRM_NOTIFICATION);
     }
 
@@ -784,7 +839,7 @@ public class MyGroupActivity extends AppCompatActivity
         return null;
     }
 
-    void chooseDrawerItem(int id, int index){
+    void chooseDrawerItem(int id, int index) {
         navigationView.getMenu().getItem(index).setChecked(true);
         openFragment(chooseFragmentById(id));
     }

@@ -106,12 +106,14 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                     b.setNegativeButton("Invite to GroupLock", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             sendSmsRequest(item);
+                            Toast.makeText(getActivity(), "SMS invite sent", Toast.LENGTH_SHORT).show();
                         }
                     });
                 } else {
                     b.setNegativeButton("Send lock request", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             sendPushNotification(item);
+                            Toast.makeText(getActivity(), "Request sent", Toast.LENGTH_SHORT).show();
                         }
                     });
 

@@ -11,6 +11,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.provider.ContactsContract;
 import android.support.v4.content.LocalBroadcastManager;
+import android.widget.Toast;
 
 import com.parse.GetCallback;
 import com.parse.ParseException;
@@ -137,8 +138,10 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         final UserStatus status;
         if (pushCode == MyGroupActivity.PUSH_RESPONSE_CODE_ACCEPTED) {
             status = UserStatus.VERIFIED;
+            Toast.makeText(mContext, MyGroupActivity.getDisplayName(mContext, senderPhone)+" has verified the request", Toast.LENGTH_LONG).show();
         } else {
             status = UserStatus.DENIED;
+            Toast.makeText(mContext, MyGroupActivity.getDisplayName(mContext, senderPhone)+" has denied the request", Toast.LENGTH_LONG).show();
         }
         UserItem senderItem = new UserItem(getNameByPhone(senderPhone), senderPhone, status);
         boolean isFound = false;
@@ -221,11 +224,12 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_splash_launcher)
-                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+//                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true)
                 .addAction(R.drawable.ic_sms_white_24dp, "Join", pIntent2)
                 .addAction(R.drawable.ic_block_white_24dp, "Deny", pIntent3).build();
+        n.defaults = Notification.DEFAULT_ALL;
 
 
         NotificationManager notificationManager =
@@ -282,12 +286,12 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_splash_launcher)
-                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+//                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true)
                 .addAction(R.drawable.ic_sms_white_24dp, "Allow", pIntent2)
                 .addAction(R.drawable.ic_block_white_24dp, "Deny", pIntent3).build();
-
+        n.defaults = Notification.DEFAULT_ALL;
 
         NotificationManager notificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);

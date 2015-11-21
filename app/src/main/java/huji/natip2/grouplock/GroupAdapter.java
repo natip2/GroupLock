@@ -1,6 +1,7 @@
 package huji.natip2.grouplock;
 
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,15 +10,33 @@ import android.widget.TextView;
 
 import com.parse.ParseQueryAdapter;
 
+import java.util.List;
+
 public class GroupAdapter extends ParseQueryAdapter<Group> {
 
 
     private Context mContext;
+    private ProgressDialog progressDialog;
 
-    public GroupAdapter(Context context,
+    public GroupAdapter(final Context context,
                            ParseQueryAdapter.QueryFactory<Group> queryFactory) {
         super(context, queryFactory);
         mContext = context;
+
+        addOnQueryLoadListener(new OnQueryLoadListener<Group>() {
+            @Override
+            public void onLoading() {
+                progressDialog = ProgressDialog.show(context, null,
+                        "Loading group list", true, false);
+            }
+
+            @Override
+            public void onLoaded(List<Group> groupList, Exception e) {
+                if (progressDialog != null) {
+                    progressDialog.dismiss();
+                }
+            }
+        });
     }
 
     @Override
