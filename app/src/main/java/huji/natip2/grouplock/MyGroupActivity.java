@@ -4,8 +4,8 @@
  * 2. update locked phone after push lock
  * 3. maps, parse geo location
  * 4. history
-
- *
+ * <p/>
+ * <p/>
  * dont:
  * 1. splash screen (+ lock)
  * 2. phone- no contact phone
@@ -17,22 +17,29 @@ package huji.natip2.grouplock;
 
 import android.app.AlertDialog;
 import android.app.NotificationManager;
+import android.app.ProgressDialog;
 import android.app.SearchManager;
 import android.app.SearchableInfo;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -79,9 +86,12 @@ public class MyGroupActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, HistoryFragment.OnFragmentInteractionListener, UserFragment.OnFragmentInteractionListener {
 
 
-    final static int PUSH_CODE_CONFIRM_NOTIFICATION = 10;
-    final static int PUSH_CODE_UPDATE_LIST_FROM_PARSE = 11;
-    final static int PUSH_CODE_QUIT = 12;
+    final static int MAIN_FRAGMENT_INDEX = 0;
+
+    final static int PUSH_CODE_CONFIRM_NOTIFICATION = 100;
+    final static int PUSH_CODE_UPDATE_LIST_FROM_PARSE = 101;
+    final static int PUSH_CODE_QUIT = 102;
+    final static int PUSH_CODE_CONFIRM_UNLOCK = 103;
 
     static final String PUSH_CODE = "pushCode";
 
@@ -92,12 +102,27 @@ public class MyGroupActivity extends AppCompatActivity
     final static int PUSH_RESPONSE_CODE_ACCEPTED = 3;
     final static int PUSH_RESPONSE_CODE_REJECTED = 4;
     static final int PUSH_ADMIN_LOCK = 6;
+    static final int PUSH_ADMIN_UNLOCK = 7;
+    static final int PUSH_CODE_UNLOCK_ACCEPTED = 8;
+    static final int PUSH_CODE_UNLOCK_REJECTED = 9;
+    static final int PUSH_CODE_UNLOCK_NOT_SPECIFIED = 10;
+    static final int PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED = 11;
+    static final int PUSH_RESPONSE_CODE_UNLOCK_REJECTED = 12;
 
-    final static int PUSH_RESPONSE_CODE_NOT_SPECIFIED = 5;
     private static final int TO_RESPONSE_CONVERT_ADDITION = 3;
+
+    // broadcast receiver actions
+    static final int NO_ACTION = -1;
+    static final int ACTION_LOCK = 1;
+    static final int ACTION_UNLOCK = 2;
+    static final int ACTION_UPDATE = 3;
+    static final int ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT = 4;
+    static final String ACTION_CODE_EXTRA = "actionCode";
+
     public Group adminGroup;
     private int pushCode = PUSH_CODE_NO_CODE;
 
+    private BroadcastReceiver receiver = null;
 
     public String adminPhone = null;
     public String groupId = null;
@@ -106,12 +131,48 @@ public class MyGroupActivity extends AppCompatActivity
     private ImageView closeBtn;
     private String countryCodeChosen = null;
     private FloatingActionButton fab;
+    private TextView actionBarTitle;
+    private boolean isLocked = false;
+    private int unlockAcceptedCount = 0; // TODO: 19/11/2015 make sure the variable is stable, i.e. not 0 after new intent (e.g. notification open)
+    private NavigationView navigationView;
+    private Toolbar toolbar;
+    private ProgressDialog progressDialog;
+    private boolean isShowProgress = false;
 
     @Override
     protected void onNewIntent(Intent intent) {
         setIntent(intent);
+        Toast.makeText(MyGroupActivity.this, "New intent", Toast.LENGTH_SHORT).show();
         if (intent.hasExtra("countryCodeChosen")) {
             countryCodeChosen = intent.getStringExtra("countryCodeChosen");
+        }
+        if (intent.hasExtra(PUSH_CODE)) {
+            pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
+            adminPhone = intent.getStringExtra("adminPhone");
+            String senderPhone = intent.getStringExtra("adminPhone");
+            groupId = intent.getStringExtra("groupId");
+            switch (pushCode) {
+                case PUSH_CODE_ACCEPTED:
+                    isShowProgress = true;
+                case PUSH_CODE_REJECTED:
+                case PUSH_CODE_UNLOCK_ACCEPTED:
+                case PUSH_CODE_UNLOCK_REJECTED:
+                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
+                    break;
+                case PUSH_CODE_NOT_SPECIFIED:
+                    showConfirmDialog();
+                    break;
+                case PUSH_CODE_UNLOCK_NOT_SPECIFIED:
+                    showUnlockConfirmDialog(senderPhone);
+                    break;
+
+            }
+        }
+        if (adminPhone == null || isAdmin()) {
+            // TODO: 20/10/2015 change to send :
+            fab.setVisibility(View.VISIBLE);
+        } else {
+            fab.setVisibility(View.GONE);
         }
         if (intent.hasExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_TAG)) {
             String tag = intent.getStringExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_TAG);
@@ -129,88 +190,231 @@ public class MyGroupActivity extends AppCompatActivity
         } else if (Intent.ACTION_SEARCH.equals(intent.getAction())) { // REMOVE: 14/09/2015
             // Other search query - next pressed
             // TODO: 18/10/2015 only phone
-            String phoneManualy = "lal";
+            String phoneNumber = searchView.getQuery().toString();
+            UserItem user = new UserItem(null, phoneNumber, doesUserHaveApp(phoneNumber));
+            UserFragment.addPerson(user);
+            closeSearchView();
         }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-//        if (iOweViewFragmentWithTag == null) {
-//            iOweViewFragmentWithTag = (ListViewFragment) getSupportFragmentManager().findFragmentByTag(Debt.I_OWE_TAG);
-//        }
-//        if (oweMeViewFragmentWithTag == null) {
-//            oweMeViewFragmentWithTag = (ListViewFragmentOweMe) getSupportFragmentManager().findFragmentByTag(Debt.OWE_ME_TAG);
-//        }
-        // Check if we have a logged in user
+        Toast.makeText(MyGroupActivity.this, "On resume", Toast.LENGTH_SHORT).show();
 
+        // Update view and status
+        isLocked = AppLockService.isServiceRunning();
+        updateView();
 
-//            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
-        changeFabIcon();
         Intent intent = getIntent();
-        if (intent.hasExtra(PUSH_CODE)) {
-            pushCode = intent.getIntExtra(PUSH_CODE, PUSH_CODE_NO_CODE);
-            adminPhone = intent.getStringExtra("adminPhone");
-            groupId = intent.getStringExtra("groupId");
-            switch (pushCode) {
-                case PUSH_CODE_ACCEPTED:
-                case PUSH_CODE_REJECTED:
-                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
-                    break;
-                case PUSH_CODE_NOT_SPECIFIED:
-                    showConfirmDialog();
-                    break;
 
-            }
-        }
-        if (adminPhone == null || isAdmin()) {
-             // TODO: 20/10/2015 change to send :
+    }
 
-            fab.setVisibility(View.VISIBLE);
-        }else{
-            fab.setVisibility(View.GONE);
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        if (isShowProgress) {
+            isShowProgress = false;
+            progressDialog = ProgressDialog.show(MyGroupActivity.this, null,
+                    "Loading group", true, false);
         }
     }
-    private void sendPushLockToAll(){
-        for (UserItem item : UserFragment.theList){
+
+    private void incrementUnlockAcceptedCount() {
+        unlockAcceptedCount++;
+        if (unlockAcceptedCount > 2 || adminGroup.countParticipants() < 3) {
+            unlock();
+            unlockAcceptedCount = 0;
+        }
+    }
+
+
+    private void lockVerifiedAndRequestOthers() {
+        // Lock myself (group admin)
+        lock();
+
+        int numLocked = 0;
+        int numNotiSent = 0;
+        int numSMSSent = 0;
+        // Lock all verified
+        for (UserItem item : UserFragment.theList) {
             if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
-                sendPush(item.getNumber(),adminPhone,adminPhone,groupId,MyGroupActivity.PUSH_ADMIN_LOCK);
+                // Sends a push for a user to lock himself
+                sendPush(item.getNumber(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_LOCK);
+                numLocked++;
+            } else if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
+                sendSmsRequest(item);
+                numSMSSent++;
+            } else if (item.getStatus().equals(UserStatus.HAS_APP)) {
+                sendPushNotification(item);
+                numNotiSent++;
             }
+        }
+        if (numLocked > 0) {
+            Toast.makeText(MyGroupActivity.this, numLocked + " users locked", Toast.LENGTH_SHORT).show();
+        }
+        if (numNotiSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numNotiSent + " request(s) sent", Toast.LENGTH_SHORT).show();
+        }
+        if (numSMSSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numSMSSent + " SMS invite(s) sent", Toast.LENGTH_SHORT).show();
         }
     }
 
-    protected void changeFabIcon() {
-        if(hasMoreThenOneVerifiedUser()) {
-            int id = getResources().getIdentifier("huji.natip2.grouplock:drawable/" + "ic_send_white_24dp", null, null);
+    private void unlockLocked() {
+        // Unlock myself (group admin)
+        unlock();
 
-//            fab.setImageDrawable(getDrawable(R.drawable.ic_send_white_24dp));
-            fab.setImageResource(id);
+        int numUnlocked = 0;
+        // Unlock all locked
+        for (UserItem item : UserFragment.theList) {
+            if (item.getStatus().equals(UserStatus.LOCKED) && !item.getNumber().equals(adminPhone)) {
+                // Sends a push for a user to unlock himself
+                sendPush(item.getNumber(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_UNLOCK);
+                numUnlocked++;
+            }
+        }
+        if (numUnlocked > 0) {
+            Toast.makeText(MyGroupActivity.this, numUnlocked + " users unlocked", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private boolean hasMoreThenOneVerifiedUser() {
-        for (UserItem item :  UserFragment.theList){
-            if (item.getStatus().equals(UserStatus.VERIFIED)){
-                return true;
+    void updateView() {
+        updateLockIcon();
+        updateFab();
+        if (progressDialog != null) {
+            progressDialog.dismiss();
+        }
+    }
+
+    void updateLockIcon() {
+        if (isLocked) {
+            actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);
+            toolbar.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showUnlockPushDialog();
+                }
+            });
+        } else {
+            actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);
+            toolbar.setOnClickListener(null);
+        }
+    }
+
+    private void lock() {
+        isLocked = true;
+        updateView();
+/*        TextView actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
+        actionBarTitle.setCompoundDrawablePadding(25);
+        actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);*/
+
+        startLockService();
+    }
+
+    private void unlock() {
+        isLocked = false;
+        updateView();
+/*        TextView actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
+        actionBarTitle.setCompoundDrawablePadding(25);
+        actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);*/
+
+        stopLockService();
+    }
+
+    private void startLockService() {
+        Intent lockServiceIntent = new Intent(MyGroupActivity.this, AppLockService.class);
+        startService(lockServiceIntent);
+    }
+
+    private void stopLockService() {
+        Intent lockServiceIntent = new Intent(MyGroupActivity.this, AppLockService.class);
+        stopService(lockServiceIntent);
+    }
+
+
+    protected void updateFab() {
+        int numVerified = 0;
+        int numNotSent = 0;
+        for (UserItem item : UserFragment.theList) {
+            UserStatus status = item.getStatus();
+            if (status.equals(UserStatus.VERIFIED)) {
+                numVerified++;
+            } else if (!status.equals(UserStatus.WAIT_FOR_VERIFICATION)) {
+                numNotSent++;
             }
         }
-        return false;
+
+        if (isLocked) {
+            fab.setImageResource(R.drawable.ic_lock_open_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    unlockLocked();
+                }
+            });
+        } else if (numVerified > 0) {
+            fab.setImageResource(R.drawable.ic_lock_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    lockVerifiedAndRequestOthers();
+                }
+            });
+        } else if (numNotSent > 0) {
+            fab.setImageResource(R.drawable.ic_send_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendRequestToAll();
+                }
+            });
+        } else {
+            fab.setImageResource(R.drawable.ic_person_add_white_24dp);
+            fab.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    searchView.setIconified(false);
+                }
+            });
+        }
     }
 
 
     private void showConfirmDialog() {
         final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
         b.setIcon(android.R.drawable.ic_dialog_alert);
-        String message = "Join to the group?\n\t" + getNameByPhone(adminPhone) + " invites you";
+        String message = "Join the group?\n\t" + getNameByPhone(getApplicationContext(), adminPhone) + " invites you";
         b.setMessage(message);
         b.setPositiveButton("Join", new DialogInterface.OnClickListener() {
+
             public void onClick(DialogInterface dialog, int whichButton) {
+                progressDialog = ProgressDialog.show(MyGroupActivity.this, null,
+                        "Loading group", true, false);
                 sendPushResponseToAdmin(PUSH_RESPONSE_CODE_ACCEPTED);
             }
         });
         b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 sendPushResponseToAdmin(PUSH_RESPONSE_CODE_REJECTED);
+            }
+        });
+        b.show();
+    }
+
+    private void showUnlockConfirmDialog(String senderPhone) {
+        final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
+        b.setIcon(android.R.drawable.ic_dialog_alert);
+        String message = getNameByPhone(getApplicationContext(), senderPhone) + " wants to unlock himself?";
+        b.setMessage(message);
+        b.setPositiveButton("Allow", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED);
+            }
+        });
+        b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_UNLOCK_REJECTED);
             }
         });
         b.show();
@@ -231,17 +435,16 @@ public class MyGroupActivity extends AppCompatActivity
             Toast.makeText(MyGroupActivity.this, "Contact bad phone number", Toast.LENGTH_SHORT).show();
             return;
         }
-        Toast.makeText(MyGroupActivity.this, "NAME" + name + " num" + phoneNumber, Toast.LENGTH_SHORT).show();
         UserItem user = new UserItem(name, phoneNumber, doesUserHaveApp(phoneNumber));
-        UserFragment.addperson(user);
+        UserFragment.addPerson(user);
         return;
     }
 
-    private UserStatus doesUserHaveApp(String phoneNumber) {
+    static UserStatus doesUserHaveApp(String phoneNumber) {
         return userExist(phoneNumber) ? UserStatus.HAS_APP : UserStatus.DOES_NOT_HAVE_APP;
     }
 
-    private boolean userExist(String phone) {
+    static boolean userExist(String phone) {
         ParseQuery<ParseUser> q = ParseUser.getQuery();
         q.whereEqualTo("username", phone);
         try {
@@ -356,9 +559,24 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private String getNameByPhone(String phone) {
-        return phone;
-    }// TODO: 16/10/2015
+    static String getNameByPhone(Context context, String phoneNumber) {
+        ContentResolver cr = context.getContentResolver();
+        Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber));
+        Cursor cursor = cr.query(uri, new String[]{ContactsContract.PhoneLookup.DISPLAY_NAME}, null, null, null);
+        if (cursor == null) {
+            return null;
+        }
+        String contactName = null;
+        if (cursor.moveToFirst()) {
+            contactName = cursor.getString(cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME));
+        }
+
+        if (!cursor.isClosed()) {
+            cursor.close();
+        }
+
+        return contactName;
+    }
 
     public static final int PICK_CONTACT = 1;
 
@@ -366,21 +584,43 @@ public class MyGroupActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my_group);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+
+        toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        fab = (FloatingActionButton) findViewById(R.id.fab);
+        actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
+        actionBarTitle.setCompoundDrawablePadding(25);
 
-        fab.setOnClickListener(new View.OnClickListener() {
+        receiver = new BroadcastReceiver() {
             @Override
-            public void onClick(View view) {
-                if (hasMoreThenOneVerifiedUser()) {
-                    sendPushLockToAll();
-                } else {
-                    sendRequestToAll(); // FIXME: 20/10/2015
+            public void onReceive(Context context, Intent intent) {
+                int actionCode = intent.getIntExtra(ACTION_CODE_EXTRA, NO_ACTION);
+                switch (actionCode) {
+                    case ACTION_LOCK:
+                        lock();
+                        break;
+
+                    case ACTION_UNLOCK:
+                        unlock();
+                        break;
+
+                    case ACTION_UPDATE:
+                        updateView();
+                        break;
+
+                    case ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT:
+                        incrementUnlockAcceptedCount();
+                        break;
+
+                    default:
+                        break;
+
                 }
             }
-        });
+        };
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, new IntentFilter("huji.natip2.grouplock.MyGroupActivity"));
+
+        fab = (FloatingActionButton) findViewById(R.id.fab);
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -388,10 +628,25 @@ public class MyGroupActivity extends AppCompatActivity
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
-        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+
         onNavigationItemSelected(null);
         setupSearchView();
+    }
+
+    private void showUnlockPushDialog() {
+        final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
+        b.setIcon(android.R.drawable.ic_dialog_alert);
+        String message = "Ask group for unlock?";
+        b.setMessage(message);
+        b.setPositiveButton("Send", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendUnlockRequest();
+            }
+        });
+        b.setNegativeButton("Cancel", null);
+        b.show();
     }
 
     boolean isAdmin() {
@@ -400,11 +655,34 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     private void sendRequestToAll() {
+        if (adminPhone == null) {
+            adminPhone = ParseUser.getCurrentUser().getUsername();
+            createNewTable();
+        }
+        int numNotiSent = 0;
+        int numSMSSent = 0;
         for (UserItem item : UserFragment.theList) {
             if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
                 sendSmsRequest(item);
+                numSMSSent++;
             } else if (item.getStatus().equals(UserStatus.HAS_APP)) {
                 sendPushNotification(item);
+                numNotiSent++;
+            }
+        }
+        if (numNotiSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numNotiSent + " request(s) sent", Toast.LENGTH_SHORT).show();
+        }
+        if (numSMSSent > 0) {
+            Toast.makeText(MyGroupActivity.this, numSMSSent + " SMS invite(s) sent", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void sendUnlockRequest() {
+        String myPhone = ParseUser.getCurrentUser().getUsername();
+        for (UserItem item : UserFragment.theList) {
+            if (item.getStatus().equals(UserStatus.LOCKED)) {
+                sendPush(item.getNumber(), myPhone, adminPhone, groupId, PUSH_CODE_CONFIRM_UNLOCK);
             }
         }
     }
@@ -413,7 +691,7 @@ public class MyGroupActivity extends AppCompatActivity
         List<Object> participants = group.getParticipantsPhone();
         for (Object phoneObj : participants) {
             String phone = (String) phoneObj;
-            if(!phone.equals(adminPhone)) {
+            if (!phone.equals(adminPhone)) {
                 sendPush(phone, adminPhone, adminPhone, groupId, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
             }
         }
@@ -421,10 +699,6 @@ public class MyGroupActivity extends AppCompatActivity
 
     private void sendPushNotification(UserItem item) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
-        if (adminPhone == null) {
-            adminPhone = myPhone;
-            createNewTable();
-        }
         sendPush(item.getNumber(), myPhone, adminPhone, groupId, PUSH_CODE_CONFIRM_NOTIFICATION);
     }
 
@@ -476,7 +750,7 @@ public class MyGroupActivity extends AppCompatActivity
         adminGroup.putParticipant(adminPhone, UserStatus.VERIFIED);
         adminGroup.saveInBackground();
         UserFragment.theList.add(new UserItem(getString(R.string.group_admin_name), adminPhone, UserStatus.VERIFIED));
-        UserFragment.adapterTodo.notifyDataSetChanged();
+        UserFragment.userAdapter.notifyDataSetChanged();
     }
 
 
@@ -507,11 +781,17 @@ public class MyGroupActivity extends AppCompatActivity
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+/*        if (id == R.id.action_settings) {
             return true;
-        }
-        if (id == R.id.search_badge) {
-            sendRequestToAll();
+        }*/
+        if (id == R.id.send_to_all) {
+//           sendRequestToAll();// UNCOMMENT: 19/11/2015
+            if (isLocked) {
+                unlock();
+            } else {
+                lock();
+            }
+            return true;
         }
 
 
@@ -528,28 +808,43 @@ public class MyGroupActivity extends AppCompatActivity
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
-        Fragment fragment = null;
+        Fragment fragment;
         if (item == null) {
             fragment = UserFragment.newInstance("A", "B");
         } else {
             // Handle navigation view item clicks here.
-            int id = item.getItemId();
+            fragment = chooseFragmentById(item.getItemId());
 //        Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content), item.getTitle() + " clicked", Snackbar.LENGTH_SHORT);
-            if (id == R.id.nav_camara) {
-                fragment = UserFragment.newInstance("A", "B");
-            } else if (id == R.id.nav_gallery) {
-                fragment = HistoryFragment.newInstance("C", "D");
-            } else if (id == R.id.nav_slideshow) {
 
-            } else if (id == R.id.nav_manage) {
-
-
-            } else if (id == R.id.nav_share) {
-
-            } else if (id == R.id.nav_send) {
-
-            }
         }
+        openFragment(fragment);
+        return true;
+    }
+
+    Fragment chooseFragmentById(int id) {
+        if (id == R.id.nav_main) {
+            return UserFragment.newInstance("A", "B");
+        } else if (id == R.id.nav_history) {
+            return HistoryFragment.newInstance("C", "D");
+        } else if (id == R.id.nav_slideshow) {
+
+        } else if (id == R.id.nav_manage) {
+
+
+        } else if (id == R.id.nav_share) {
+
+        } else if (id == R.id.nav_send) {
+
+        }
+        return null;
+    }
+
+    void chooseDrawerItem(int id, int index) {
+        navigationView.getMenu().getItem(index).setChecked(true);
+        openFragment(chooseFragmentById(id));
+    }
+
+    void openFragment(Fragment fragment) {
         if (fragment != null) {
             FragmentManager fragmentManager = getSupportFragmentManager();
             FragmentTransaction transaction = fragmentManager.beginTransaction();
@@ -562,7 +857,6 @@ public class MyGroupActivity extends AppCompatActivity
             drawer.closeDrawer(GravityCompat.START);
 
         }
-        return true;
     }
 
     @Override
@@ -598,10 +892,13 @@ public class MyGroupActivity extends AppCompatActivity
         searchAutoComplete.setOnEditorActionListener(new EditText.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-
-                closeSearchView();
-                return true;
-
+                CharSequence query = searchView.getQuery();
+                if (query == null || query.toString().equals("")) {
+                    closeSearchView();
+                    return true;
+                } else {
+                    return false;
+                }
             }
         });
     }
@@ -629,7 +926,7 @@ public class MyGroupActivity extends AppCompatActivity
             searchField = SearchView.class.getDeclaredField("mSearchButton");
             searchField.setAccessible(true);
             ImageView searchButton = (ImageView) searchField.get(searchView);
-            searchButton.setImageResource(R.drawable.ic_search_white_24dp);
+            searchButton.setImageResource(R.drawable.ic_person_add_white_24dp);
 
             // Accessing the SearchAutoComplete
             int queryTextViewId = getResources().getIdentifier("android:id/search_src_text", null, null);
@@ -665,5 +962,15 @@ public class MyGroupActivity extends AppCompatActivity
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    static String getDisplayName(Context context, String phone) {
+        String name = getNameByPhone(context, phone);
+        if (name == null) {
+            name = phone;
+        } else {
+            name += " (" + phone + ")";
+        }
+        return name;
     }
 }

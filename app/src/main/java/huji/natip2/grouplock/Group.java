@@ -117,4 +117,10 @@ public class Group extends ParseObject {
         }
 
     }
+
+    int countParticipants() {
+        List<Object> phoneList = getParticipantsPhone();
+        return phoneList == null ? -1 : phoneList.size();
+
+    }
 }

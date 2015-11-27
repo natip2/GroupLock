@@ -12,7 +12,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -45,7 +44,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     private String currentUserId;
     private ListView usersListView;
     private BroadcastReceiver receiver = null;
-    public static ArrayAdapter<UserItem> adapterTodo;
+    public static ArrayAdapter<UserItem> userAdapter;
     public static ArrayList<UserItem> theList = new ArrayList<UserItem>();
 
 
@@ -69,33 +68,31 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     protected String myNumber;
     private boolean isAdmin;
 
-    public static void addperson(UserItem user) {
+    public static void addPerson(UserItem user) {
         theList.add(user);
-        adapterTodo.notifyDataSetChanged();
+        userAdapter.notifyDataSetChanged();
     }
 
     private void setAdapter() {
         //set the adapter
-        adapterTodo = new CustomAdapter(getActivity(), R.layout.user_list_item, theList);
+        userAdapter = new UserAdapter(getActivity(), R.layout.user_list_item, theList);
         mListView.setEmptyView(mEmptyView);
-        mListView.setAdapter(adapterTodo);
-        mListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-
+        mListView.setAdapter(userAdapter);
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public boolean onItemLongClick(AdapterView<?> av, View v, int pos, final long id) {
-                final UserItem item = theList.get(pos);
+            public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
+                final UserItem item = theList.get(position);
                 final AlertDialog.Builder b = new AlertDialog.Builder(getActivity());
                 b.setIcon(android.R.drawable.ic_dialog_alert);
-                final int positionToRemove = pos;
                 final String number = item.getNumber();
-                b.setMessage(item.getName() + " " + number);
+                b.setMessage(item.getDisplayName());
 
                 if (canRemove(item)) {
                     b.setPositiveButton("Remove from list", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             //todo open the lock for this number
-                            theList.remove(positionToRemove);
-                            adapterTodo.notifyDataSetChanged();
+                            theList.remove(position);
+                            userAdapter.notifyDataSetChanged();
                             if (isVerified(item) && ((MyGroupActivity) getActivity()).isAdmin()) {
                                 removeFromParse(number);
                                 MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
@@ -109,18 +106,19 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                     b.setNegativeButton("Invite to GroupLock", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             sendSmsRequest(item);
+                            Toast.makeText(getActivity(), "SMS invite sent", Toast.LENGTH_SHORT).show();
                         }
                     });
                 } else {
                     b.setNegativeButton("Send lock request", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             sendPushNotification(item);
+                            Toast.makeText(getActivity(), "Request sent", Toast.LENGTH_SHORT).show();
                         }
                     });
 
                 }
                 b.show();
-                return true;
             }
         });
     }
@@ -136,7 +134,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         }
         return !isVerified(item);
     }
-
 
 
 
@@ -201,11 +198,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     }
 
 
-    /**
-     * The Adapter which will be used to populate the ListView/GridView with
-     * Views.
-     */
-    private ListAdapter mAdapter;
 
     // TODO: Rename and change types of parameters
     public static UserFragment newInstance(String param1, String param2) {
@@ -233,8 +225,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
 
-        // TODO: Change Adapter to display your content
-        mAdapter = new CustomAdapter(getActivity(), R.layout.user_list_item, theList);
 
 //        mListView = (ListView) getView().findViewById(R.id.list_view_users);
 //        mListView.setAdapter(mAdapter);
@@ -297,6 +287,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
             ((TextView) emptyView).setText(emptyText);
         }
     }
+
 
     /**
      * This interface must be implemented by activities that contain this

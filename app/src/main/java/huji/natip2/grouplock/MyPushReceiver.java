@@ -10,6 +10,8 @@ import android.database.Cursor;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.provider.ContactsContract;
+import android.support.v4.content.LocalBroadcastManager;
+import android.widget.Toast;
 
 import com.parse.GetCallback;
 import com.parse.ParseException;
@@ -20,7 +22,6 @@ import com.parse.SaveCallback;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -37,9 +38,17 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
     private int pushCode;
     private String groupId;
 
+    private Intent broadcastIntent = new Intent("huji.natip2.grouplock.MyGroupActivity");
+    private LocalBroadcastManager broadcaster;
+
+    private Context mContext;
+
+
     @Override
     public void onPushReceive(final Context context, Intent intent) {
         mContext = context;
+        broadcaster = LocalBroadcastManager.getInstance(context);
+
         JSONObject jsonObject = null;
         try {
             jsonObject = new JSONObject(intent.getStringExtra(MyPushReceiver.KEY_PUSH_DATA));
@@ -56,7 +65,11 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         switch (pushCode) {
             //ask to add to the group
             case MyGroupActivity.PUSH_CODE_CONFIRM_NOTIFICATION:
-                showNotification(context);
+                showJoinNotification(context);
+                break;
+            //ask to unlock
+            case MyGroupActivity.PUSH_CODE_CONFIRM_UNLOCK:
+                showUnlockNotification(context);
                 break;
             //the admin updated the list-now is your turn to update your list
             case MyGroupActivity.PUSH_CODE_UPDATE_LIST_FROM_PARSE:
@@ -71,16 +84,20 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
             case MyGroupActivity.PUSH_RESPONSE_CODE_REJECTED:
                 addSenderToLocalListAndUpdateParseAndBroadcast();
                 break;
-            case MyGroupActivity.PUSH_ADMIN_LOCK:
-                Intent lockIntent = new Intent(context.getApplicationContext(), LockScreen.class);
-                lockIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(lockIntent);
+            case MyGroupActivity.PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED:
+                broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT);
+                broadcaster.sendBroadcast(broadcastIntent);
                 break;
-
-
+            case MyGroupActivity.PUSH_ADMIN_LOCK:
+                broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_LOCK);
+                broadcaster.sendBroadcast(broadcastIntent);
+                break;
+            case MyGroupActivity.PUSH_ADMIN_UNLOCK:
+                broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UNLOCK);
+                broadcaster.sendBroadcast(broadcastIntent);
+                break;
         }
     }
-    private Context mContext;
 
 
     private void updateLocalListFromParse() {
@@ -89,7 +106,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         query.getFirstInBackground(new GetCallback<Group>() {
             @Override
             public void done(Group group, ParseException e) {
-                removeVerifiedUsers(UserFragment.theList);
+                removeVerifiedUsers();
                 List<Object> participantsPhone = group.getParticipantsPhone();
                 List<Object> participantsStatus = group.getParticipantsStatus();
                 int i = 0;
@@ -101,13 +118,19 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                     UserFragment.theList.add(newItem);
                     i++;
                 }
-                UserFragment.adapterTodo.notifyDataSetChanged();
+                UserFragment.userAdapter.notifyDataSetChanged();
+                broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UPDATE);
+                broadcaster.sendBroadcast(broadcastIntent);
             }
         });
     }
 
-    private void removeVerifiedUsers(ArrayList<UserItem> theList) {
-        // TODO: 20/10/2015
+    private void removeVerifiedUsers() {
+        for (UserItem item : UserFragment.theList) {
+            if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
+                UserFragment.theList.remove(item);
+            }
+        }
     }
 
 
@@ -115,8 +138,10 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         final UserStatus status;
         if (pushCode == MyGroupActivity.PUSH_RESPONSE_CODE_ACCEPTED) {
             status = UserStatus.VERIFIED;
+            Toast.makeText(mContext, MyGroupActivity.getDisplayName(mContext, senderPhone)+" has verified the request", Toast.LENGTH_LONG).show();
         } else {
             status = UserStatus.DENIED;
+            Toast.makeText(mContext, MyGroupActivity.getDisplayName(mContext, senderPhone)+" has denied the request", Toast.LENGTH_LONG).show();
         }
         UserItem senderItem = new UserItem(getNameByPhone(senderPhone), senderPhone, status);
         boolean isFound = false;
@@ -130,17 +155,10 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         if (!isFound) {
             UserFragment.theList.add(senderItem);
         }
-        UserFragment.adapterTodo.notifyDataSetChanged();
+        UserFragment.userAdapter.notifyDataSetChanged();
+        broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UPDATE);
+        broadcaster.sendBroadcast(broadcastIntent);
 
-        for (UserItem item : UserFragment.theList) {
-            if (item.getStatus().equals(UserStatus.VERIFIED)){
-                int id = R.drawable.ic_search_white_24dp;
-//                FloatingActionButton fab = (FloatingActionButton) mContext.findViewById(R.id.fab);
-//                fab.setImageResource(id);
-
-                break;
-            }
-        }
         // add current person to parse
         ParseQuery<Group> query = Group.getQuery();
         query.whereEqualTo("objectId", groupId);
@@ -160,8 +178,8 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
     }
 
 
-    public void showNotification(Context context) {
-        String title = "Join to the group?";
+    public void showJoinNotification(Context context) {
+        String title = "Join the group?";
         String text = getNameByPhone(adminPhone) + " invites you";
 
         // prepare intent which is triggered if the
@@ -206,12 +224,74 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_splash_launcher)
-                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+//                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true)
                 .addAction(R.drawable.ic_sms_white_24dp, "Join", pIntent2)
                 .addAction(R.drawable.ic_block_white_24dp, "Deny", pIntent3).build();
+        n.defaults = Notification.DEFAULT_ALL;
 
+
+        NotificationManager notificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        notificationManager.notify(NOTIFICATION_TAG, NOTIFICATION_ID, n);
+
+    }
+
+    public void showUnlockNotification(Context context) {
+        String title = getNameByPhone(senderPhone) + " wants to unlock himself?";
+        String text = "Your agreement is necessary";
+
+        // prepare intent which is triggered if the
+        // notification is selected
+
+        Intent intent = new Intent(context, MyGroupActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        // use System.currentTimeMillis() to have a unique ID for the pending intent
+        intent.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_NOT_SPECIFIED);
+        intent.putExtra("adminPhone", adminPhone);
+        intent.putExtra("senderPhone", senderPhone);
+        intent.putExtra("groupId", groupId);
+        intent.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
+        intent.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
+        PendingIntent pIntent = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), intent, 0);
+
+
+        Intent intent2 = new Intent(context, MyGroupActivity.class);
+        intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent2.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_ACCEPTED);
+        intent2.putExtra("adminPhone", adminPhone);
+        intent2.putExtra("groupId", groupId);
+        intent2.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
+        intent2.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
+
+        // use System.currentTimeMillis() to have a unique ID for the pending intent
+        PendingIntent pIntent2 = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), intent2, 0);
+
+        Intent intent3 = new Intent(context, MyGroupActivity.class);
+        intent3.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent3.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_REJECTED);
+        intent3.putExtra("adminPhone", adminPhone);
+        intent3.putExtra("groupId", groupId);
+        intent3.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
+        intent3.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
+
+        // use System.currentTimeMillis() to have a unique ID for the pending intent
+        PendingIntent pIntent3 = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), intent3, 0);
+
+        // build notification
+        // the addAction re-use the same intent to keep the example short
+        Notification n = new Notification.Builder(context)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(R.drawable.ic_splash_launcher)
+//                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                .setContentIntent(pIntent)
+                .setAutoCancel(true)
+                .addAction(R.drawable.ic_sms_white_24dp, "Allow", pIntent2)
+                .addAction(R.drawable.ic_block_white_24dp, "Deny", pIntent3).build();
+        n.defaults = Notification.DEFAULT_ALL;
 
         NotificationManager notificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);

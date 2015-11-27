@@ -1,30 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent">
+    android:layout_height="fill_parent"
+    android:id="@+id/container">
 
-    <TextView
-        android:id="@+id/app_slogan_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="88dp"
-        android:gravity="center_horizontal"
-        android:text="@string/app_slogan"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:textColor="#1b72ba"
-        android:textSize="35sp"
-        android:textStyle="bold" />
 
     <ImageView
         android:id="@+id/logo_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/app_name"
+        android:src="@drawable/ic_screen_lock_portrait_black_48dp"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true" />
+
+    <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/app_slogan_text"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="25dp"
-        android:contentDescription="@string/app_name"
-        android:src="@drawable/ic_lock_outline_black_24dp" />
+        android:text="Request Unlock"
+        android:id="@+id/unlock_button"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
 
 </RelativeLayout>
