@@ -7,7 +7,6 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.media.RingtoneManager;
 import android.net.Uri;
 import android.provider.ContactsContract;
 import android.support.v4.content.LocalBroadcastManager;
@@ -55,7 +54,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
             adminPhone = jsonObject.getString("adminPhone");
             groupId = jsonObject.getString("groupId");
             senderPhone = jsonObject.getString("senderPhone");
-            pushCode = jsonObject.getInt(MyGroupActivity.PUSH_CODE);
+            pushCode = jsonObject.getInt(MyGroupActivity.PUSH_CODE_EXTRA);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -127,7 +126,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
     private void removeVerifiedUsers() {
         for (UserItem item : UserFragment.theList) {
-            if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getNumber().equals(adminPhone)) {
+            if (item.getStatus().equals(UserStatus.VERIFIED) && !item.getPhone().equals(adminPhone)) {
                 UserFragment.theList.remove(item);
             }
         }
@@ -146,7 +145,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         UserItem senderItem = new UserItem(getNameByPhone(senderPhone), senderPhone, status);
         boolean isFound = false;
         for (UserItem item : UserFragment.theList) {
-            if (item.getNumber().equals(senderItem.getNumber())) {
+            if (item.getPhone().equals(senderItem.getPhone())) {
                 isFound = true;
                 item.setStatus(status);
                 break;
@@ -188,7 +187,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Intent intent = new Intent(context, MyGroupActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         // use System.currentTimeMillis() to have a unique ID for the pending intent
-        intent.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_NOT_SPECIFIED);
+        intent.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_NOT_SPECIFIED);
         intent.putExtra("adminPhone", adminPhone);
         intent.putExtra("groupId", groupId);
         intent.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
@@ -198,7 +197,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
         Intent intent2 = new Intent(context, MyGroupActivity.class);
         intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent2.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_ACCEPTED);
+        intent2.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_ACCEPTED);
         intent2.putExtra("adminPhone", adminPhone);
         intent2.putExtra("groupId", groupId);
         intent2.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
@@ -209,7 +208,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
         Intent intent3 = new Intent(context, MyGroupActivity.class);
         intent3.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent3.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_REJECTED);
+        intent3.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_REJECTED);
         intent3.putExtra("adminPhone", adminPhone);
         intent3.putExtra("groupId", groupId);
         intent3.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
@@ -249,7 +248,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Intent intent = new Intent(context, MyGroupActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         // use System.currentTimeMillis() to have a unique ID for the pending intent
-        intent.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_NOT_SPECIFIED);
+        intent.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_UNLOCK_NOT_SPECIFIED);
         intent.putExtra("adminPhone", adminPhone);
         intent.putExtra("senderPhone", senderPhone);
         intent.putExtra("groupId", groupId);
@@ -260,7 +259,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
         Intent intent2 = new Intent(context, MyGroupActivity.class);
         intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent2.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_ACCEPTED);
+        intent2.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_UNLOCK_ACCEPTED);
         intent2.putExtra("adminPhone", adminPhone);
         intent2.putExtra("groupId", groupId);
         intent2.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
@@ -271,7 +270,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
         Intent intent3 = new Intent(context, MyGroupActivity.class);
         intent3.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent3.putExtra(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_UNLOCK_REJECTED);
+        intent3.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_UNLOCK_REJECTED);
         intent3.putExtra("adminPhone", adminPhone);
         intent3.putExtra("groupId", groupId);
         intent3.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);

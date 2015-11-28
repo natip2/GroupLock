@@ -30,7 +30,7 @@ public class UserAdapter extends ArrayAdapter<UserItem> {
 
         UserItem item = getItem(position);
         String name = item.getName();
-        String phone = item.getNumber();
+        String phone = item.getPhone();
         String title = (name != null ? name : "") + "\n" + phone;
         if (phone.equals(myPhone)) {
             title = "Me";

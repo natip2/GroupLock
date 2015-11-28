@@ -46,6 +46,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     private BroadcastReceiver receiver = null;
     public static ArrayAdapter<UserItem> userAdapter;
     public static ArrayList<UserItem> theList = new ArrayList<UserItem>();
+    public static UserItem myUserItem;
 
 
     // TODO: Rename parameter arguments, choose names that match
@@ -84,7 +85,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                 final UserItem item = theList.get(position);
                 final AlertDialog.Builder b = new AlertDialog.Builder(getActivity());
                 b.setIcon(android.R.drawable.ic_dialog_alert);
-                final String number = item.getNumber();
+                final String number = item.getPhone();
                 b.setMessage(item.getDisplayName());
 
                 if (canRemove(item)) {
@@ -101,7 +102,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                     });
                 }
 
-//                final String phone = theList.get(pos).getNumber().replaceAll("[^\\d.]", "").replace("+972", "0");// TODO: 16/10/2015 remove
+//                final String phone = theList.get(pos).getPhone().replaceAll("[^\\d.]", "").replace("+972", "0");// TODO: 16/10/2015 remove
                 if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
                     b.setNegativeButton("Invite to GroupLock", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
@@ -149,14 +150,14 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         try {
             jsonObject = new JSONObject();
 
-            jsonObject.put(MyGroupActivity.PUSH_CODE, MyGroupActivity.PUSH_CODE_CONFIRM_NOTIFICATION);
+            jsonObject.put(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_CONFIRM_NOTIFICATION);
             jsonObject.put("adminPhone", ((MyGroupActivity) getActivity()).adminPhone);
             jsonObject.put("groupId", ((MyGroupActivity) getActivity()).groupId);
             jsonObject.put("senderPhone", myPhone);
 
 
             ParsePush push = new ParsePush();
-            push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + item.getNumber().replaceAll("[^0-9]+", ""));
+            push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + item.getPhone().replaceAll("[^0-9]+", ""));
             push.setData(jsonObject);
             push.sendInBackground(new SendCallback() {
                 @Override
@@ -178,7 +179,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         SmsManager smsManager = SmsManager.getDefault();
         String message = "Join GroupLock, " +
                 "\nAdmin phone:" + ((MyGroupActivity) getActivity()).adminPhone; // TODO: 15/10/2015 url
-        smsManager.sendTextMessage(item.getNumber(), null, message, null, null);
+        smsManager.sendTextMessage(item.getPhone(), null, message, null, null);
         Toast.makeText(getActivity(), "SMS Sent!",
                 Toast.LENGTH_LONG).show();
     }
