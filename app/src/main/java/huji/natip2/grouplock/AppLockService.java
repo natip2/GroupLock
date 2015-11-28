@@ -123,7 +123,7 @@ public class AppLockService extends Service {
 
         System.out.println();*/// REMOVE: 18/11/2015
         String activityOnTop = getForegroundApp();
-        Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+//        Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         if (activityOnTop != null && activityOnTop.equals(APP_TO_LOCK)) {
             Intent lockIntent = new Intent(this, LockScreen.class); // TODO: 13/11/2015 context
             lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
