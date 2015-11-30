@@ -6,13 +6,13 @@ package huji.natip2.grouplock;
 public class UserItem {
 
     private String name;
-    private String number;
+    private String phone;
     private UserStatus status;
 
-    public UserItem(String name, String number, UserStatus status) {
+    public UserItem(String name, String phone, UserStatus status) {
         this.name = name;
         this.status = status;
-        this.number = number;
+        this.phone = phone;
     }
 
     public String getName() {
@@ -20,12 +20,12 @@ public class UserItem {
     }
 
     public String getDisplayName() {
-        return this.name != null ? this.name : this.number;
+        return this.name != null ? this.name : this.phone;
     }
 
 
-    public String getNumber() {
-        return this.number;
+    public String getPhone() {
+        return this.phone;
     }
 
     public UserStatus getStatus() {
@@ -43,7 +43,7 @@ public class UserItem {
         }
         UserItem o = (UserItem) obj;
 
-        return number.equals(o.number);
+        return phone.equals(o.phone);
     }
 }
 

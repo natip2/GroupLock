@@ -164,6 +164,7 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
     }
 
     private void recreateGroup(Group group) {
+        String myPhone = ParseUser.getCurrentUser().getUsername();
         List<Object> participantsPhone = group.getParticipantsPhone();
         for (Object phoneObj : participantsPhone) {
             String phone = (String) phoneObj;
@@ -171,6 +172,9 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
             UserItem newItem = new UserItem(name, phone, MyGroupActivity.doesUserHaveApp(phone));
             if (!UserFragment.theList.contains(newItem)) {
                 UserFragment.theList.add(newItem);
+                if (phone.equals(myPhone)) {
+                    UserFragment.myUserItem = newItem;
+                }
             }
         }
         UserFragment.userAdapter.notifyDataSetChanged();
