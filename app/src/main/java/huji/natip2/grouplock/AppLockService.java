@@ -4,6 +4,10 @@ import android.app.ActivityManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -11,6 +15,7 @@ import android.support.annotation.Nullable;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class AppLockService extends Service {
@@ -91,7 +96,7 @@ public class AppLockService extends Service {
 
 
     private void lockTopForegroundApp() {
-        /*ArrayList<String> apps = new ArrayList<>();
+        ArrayList<String> apps = new ArrayList<>();
         PackageManager packageManager = getPackageManager();
         Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
         mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -113,10 +118,10 @@ public class AppLockService extends Service {
         List<ActivityManager.RunningAppProcessInfo> tasks = mActivityManager.getRunningAppProcesses();
         ActivityManager.RunningAppProcessInfo ar = tasks.get(0);
 
-        System.out.println();*/// REMOVE: 18/11/2015
+        System.out.println();// REMOVE: 18/11/2015
         String activityOnTop = getForegroundApp();
         Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
-        if (activityOnTop != null && activityOnTop.equals(APP_TO_LOCK)) {
+        if (activityOnTop == null || activityOnTop.equals(APP_TO_LOCK)) {
             Intent lockIntent = new Intent(this, LockScreen.class); // TODO: 13/11/2015 context
             lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
             startActivity(lockIntent);
@@ -157,10 +162,10 @@ public class AppLockService extends Service {
                 ActivityManager.RunningTaskInfo foregroundTaskInfo = am.getRunningTasks(1).get(0);
                 topApp = foregroundTaskInfo.topActivity.getPackageName();*/
 
-                ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+               /* ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
                 // The first in the list of RunningTasks is always the foreground task.
                 ActivityManager.RunningTaskInfo foregroundTaskInfo = am.getRunningTasks(1).get(0);
-                topApp = foregroundTaskInfo.topActivity.getPackageName();
+                topApp = foregroundTaskInfo.topActivity.getPackageName();*/
 
                                                     // Method 3:
 //                 Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);

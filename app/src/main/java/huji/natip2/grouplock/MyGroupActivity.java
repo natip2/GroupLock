@@ -121,10 +121,15 @@ public class MyGroupActivity extends AppCompatActivity
     static final int NO_ACTION = -1;
     static final int ACTION_LOCK = 1;
     static final int ACTION_UNLOCK = 2;
+    static final int ACTION_UNLOCK_ALL = 6;
     static final int ACTION_UPDATE = 3;
     static final int ACTION_REQUEST_UNLOCK = 4;
     static final int ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT = 5;
     static final String ACTION_CODE_EXTRA = "actionCode";
+
+
+    static boolean isAdmin;
+
 
     public Group adminGroup;
     private int pushCode = PUSH_CODE_NO_CODE;
@@ -253,7 +258,7 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
 
-    private void lockVerifiedAndRequestOthers() {
+    private void lockAll() {
         if (!isAdmin()) {
             return;
         }
@@ -297,7 +302,7 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     // TODO: 28/11/2015 remove if no admin privileges
-    private void unlockLocked() {
+    private void unlockAll() {
         if (!isAdmin()) {
             return;
         }
@@ -409,7 +414,7 @@ public class MyGroupActivity extends AppCompatActivity
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    unlockLocked();
+                    unlockAll();
                 }
             });
         } else if (numVerified > 0) {
@@ -418,7 +423,7 @@ public class MyGroupActivity extends AppCompatActivity
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    lockVerifiedAndRequestOthers();
+                    lockAll();
                 }
             });
         } else if (numNotSent > 0) {
@@ -606,6 +611,11 @@ public class MyGroupActivity extends AppCompatActivity
 //                        updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
                         break;
 
+                    case ACTION_UNLOCK_ALL:
+                        unlockAll();
+//                        updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
+                        break;
+
                     case ACTION_UPDATE:
                         updateView();
                         break;
@@ -658,7 +668,8 @@ public class MyGroupActivity extends AppCompatActivity
 
     boolean isAdmin() {
         String myPhone = ParseUser.getCurrentUser().getUsername();
-        return myPhone.equals(adminPhone);
+        isAdmin =myPhone.equals(adminPhone);
+        return isAdmin;
     }
 
     private void sendRequestToAll() {
@@ -809,6 +820,7 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     void createNewTable() {
+        isAdmin = true;
         adminGroup = new Group();
         adminGroup.setAdmin(adminPhone);
         addAdminToList();
