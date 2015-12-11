@@ -45,7 +45,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     private ListView usersListView;
     private BroadcastReceiver receiver = null;
     public static ArrayAdapter<UserItem> userAdapter;
-    public static ArrayList<UserItem> theList = new ArrayList<UserItem>();
+    public static ArrayList<UserItem> localList = new ArrayList<UserItem>();
     public static UserItem myUserItem;
 
 
@@ -70,19 +70,19 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     private boolean isAdmin;
 
     public static void addPerson(UserItem user) {
-        theList.add(user);
+        localList.add(user);
         userAdapter.notifyDataSetChanged();
     }
 
     private void setAdapter() {
         //set the adapter
-        userAdapter = new UserAdapter(getActivity(), R.layout.user_list_item, theList);
+        userAdapter = new UserAdapter(getActivity(), R.layout.user_list_item, localList);
         mListView.setEmptyView(mEmptyView);
         mListView.setAdapter(userAdapter);
         mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
-                final UserItem item = theList.get(position);
+                final UserItem item = localList.get(position);
                 final AlertDialog.Builder b = new AlertDialog.Builder(getActivity());
                 b.setIcon(android.R.drawable.ic_dialog_alert);
                 final String number = item.getPhone();
@@ -92,7 +92,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                     b.setPositiveButton("Remove from list", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             //todo open the lock for this number
-                            theList.remove(position);
+                            localList.remove(position);
                             userAdapter.notifyDataSetChanged();
                             if (isVerified(item) && ((MyGroupActivity) getActivity()).isAdmin()) {
                                 removeFromParse(number);
@@ -102,7 +102,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                     });
                 }
 
-//                final String phone = theList.get(pos).getPhone().replaceAll("[^\\d.]", "").replace("+972", "0");// TODO: 16/10/2015 remove
                 if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
                     b.setNegativeButton("Invite to GroupLock", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {

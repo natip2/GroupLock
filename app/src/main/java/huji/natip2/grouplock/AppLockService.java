@@ -1,14 +1,11 @@
 package huji.natip2.grouplock;
 
 import android.app.ActivityManager;
-import android.app.AppOpsManager;
 import android.app.Service;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -18,8 +15,6 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 public class AppLockService extends Service {
 
@@ -123,7 +118,7 @@ public class AppLockService extends Service {
 
         System.out.println();*/// REMOVE: 18/11/2015
         String activityOnTop = getForegroundApp();
-//        Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+        Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         if (activityOnTop != null && activityOnTop.equals(APP_TO_LOCK)) {
             Intent lockIntent = new Intent(this, LockScreen.class); // TODO: 13/11/2015 context
             lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
@@ -160,11 +155,31 @@ public class AppLockService extends Service {
                 topApp = foreground.get(0);
             }
             if (topApp == null) { // FIXME: 11/21/2015 android 5.0: sony m4
-                ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+                /*ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
                 // The first in the list of RunningTasks is always the foreground task.
                 ActivityManager.RunningTaskInfo foregroundTaskInfo = am.getRunningTasks(1).get(0);
-                topApp = foregroundTaskInfo.topActivity.getPackageName();
+                topApp = foregroundTaskInfo.topActivity.getPackageName();*/
+
+
+                                                    // Method 3:
+                 Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+                startActivity(intent);
+                UsageStatsManager mUsageStatsManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+                long currentTime = System.currentTimeMillis();
+                // get usage stats for the last 10 seconds
+                List<UsageStats> stats = mUsageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, currentTime - 1000 * 10, currentTime);
+                // search for app with most recent last used time
+                if (stats != null) {
+                    long lastUsedAppTime = 0;
+                    for (UsageStats usageStats : stats) {
+                        if (usageStats.getLastTimeUsed() > lastUsedAppTime) {
+                            topApp = usageStats.getPackageName();
+                            lastUsedAppTime = usageStats.getLastTimeUsed();
+                        }
+                    }
+                }
             }
+
                     /*                // Method 3:
                 // with: Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
                 UsageStatsManager mUsageStatsManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);

@@ -63,7 +63,7 @@ public class UserAdapter extends ArrayAdapter<UserItem> {
                     phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_lock_outline_black_24dp, 0, 0, 0);
                     break;
                 }
-                case DENIED: {
+                case DENIED: {// TODO: 11/12/2015 remove
 //                phonePlace.setTextColor(Color.YELLOW);
                     phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_block_black_24dp, 0, 0, 0);
                     break;

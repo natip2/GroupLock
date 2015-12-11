@@ -170,8 +170,8 @@ public class HistoryFragment extends Fragment implements AbsListView.OnItemClick
             String phone = (String) phoneObj;
             String name = MyGroupActivity.getNameByPhone(getActivity(), phone);
             UserItem newItem = new UserItem(name, phone, MyGroupActivity.doesUserHaveApp(phone));
-            if (!UserFragment.theList.contains(newItem)) {
-                UserFragment.theList.add(newItem);
+            if (!UserFragment.localList.contains(newItem)) {
+                UserFragment.localList.add(newItem);
                 if (phone.equals(myPhone)) {
                     UserFragment.myUserItem = newItem;
                 }

@@ -7,6 +7,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.provider.ContactsContract;
 import android.support.v4.content.LocalBroadcastManager;
@@ -17,7 +18,6 @@ import com.parse.ParseException;
 import com.parse.ParsePushBroadcastReceiver;
 import com.parse.ParseQuery;
 import com.parse.ParseUser;
-import com.parse.SaveCallback;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -66,7 +66,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         switch (pushCode) {
             //ask to add to the group
             case MyGroupActivity.PUSH_CODE_CONFIRM_NOTIFICATION:
-                showJoinNotification(context);
+                showJoinNotificationNoAcceptDeny(context);
                 break;
             //ask to unlock
             case MyGroupActivity.PUSH_CODE_CONFIRM_UNLOCK:
@@ -91,11 +91,11 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 break;
             case MyGroupActivity.PUSH_ADMIN_LOCK:
                 broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_LOCK);
-                broadcaster.sendBroadcast(broadcastIntent);
+                broadcaster.sendBroadcast(broadcastIntent); //// TODO: 08/12/2015 why need to brodcast
                 break;
             case MyGroupActivity.PUSH_ADMIN_UNLOCK:
                 broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UNLOCK);
-                broadcaster.sendBroadcast(broadcastIntent);
+                //broadcaster.sendBroadcast(broadcastIntent);
                 break;
         }
     }
@@ -117,7 +117,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                     String name = getNameByPhone(phone);
                     UserStatus status = UserStatus.valueOf((String) participantsStatus.get(i));
                     UserItem newItem = new UserItem(name, phone, status);
-                    UserFragment.theList.add(newItem);
+                    UserFragment.localList.add(newItem);
                     if(phone.equals(myPhone)) {
                         UserFragment.myUserItem = newItem;
                     }
@@ -132,12 +132,12 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
 
     private void removeVerifiedUsers() {
         ArrayList<UserItem> itemsToRemove= new ArrayList<>();
-        for (UserItem item : UserFragment.theList) {
+        for (UserItem item : UserFragment.localList) {
             if (item.getStatus().equals(UserStatus.VERIFIED)||item.getStatus().equals(UserStatus.LOCKED)) {
                 itemsToRemove.add(item);
             }
         }
-        UserFragment.theList.removeAll(itemsToRemove);
+        UserFragment.localList.removeAll(itemsToRemove);
     }
 
 
@@ -146,13 +146,13 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         if (pushCode == MyGroupActivity.PUSH_RESPONSE_CODE_ACCEPTED) {
             status = UserStatus.VERIFIED;
             Toast.makeText(mContext, MyGroupActivity.getDisplayName(mContext, senderPhone) + " has verified the request", Toast.LENGTH_LONG).show();
-        } else {
+        } else { // TODO: 11/12/2015 remove
             status = UserStatus.DENIED;
             Toast.makeText(mContext, MyGroupActivity.getDisplayName(mContext, senderPhone) + " has denied the request", Toast.LENGTH_LONG).show();
         }
         UserItem senderItem = new UserItem(getNameByPhone(senderPhone), senderPhone, status);
         boolean isFound = false;
-        for (UserItem item : UserFragment.theList) {
+        for (UserItem item : UserFragment.localList) {
             if (item.getPhone().equals(senderItem.getPhone())) {
                 isFound = true;
                 item.setStatus(status);
@@ -160,13 +160,13 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
             }
         }
         if (!isFound) {
-            UserFragment.theList.add(senderItem);
+            UserFragment.localList.add(senderItem);
         }
         UserFragment.userAdapter.notifyDataSetChanged();
         broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UPDATE);
         broadcaster.sendBroadcast(broadcastIntent);
 
-        MyGroupActivity.updateSingleUserInParse(adminPhone,groupId,senderItem);
+        MyGroupActivity.updateSingleUserInParse(adminPhone, groupId, senderItem);
     }
 
 
@@ -230,6 +230,69 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         notificationManager.notify(NOTIFICATION_TAG, NOTIFICATION_ID, n);
 
     }
+
+
+    public void showJoinNotificationNoAcceptDeny(Context context) {
+        String title = "Join the group?";
+        String text = getNameByPhone(adminPhone) + " invites you";
+
+        // prepare intent which is triggered if the
+        // notification is selected
+
+        Intent intent = new Intent(context, MyGroupActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        // use System.currentTimeMillis() to have a unique ID for the pending intent
+        intent.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_NOT_SPECIFIED);
+        intent.putExtra("adminPhone", adminPhone);
+        intent.putExtra("groupId", groupId);
+        intent.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
+        intent.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
+        PendingIntent pIntent = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), intent, 0);
+
+
+//        Intent intent2 = new Intent(context, MyGroupActivity.class);
+//        intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+//        intent2.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_ACCEPTED);
+//        intent2.putExtra("adminPhone", adminPhone);
+//        intent2.putExtra("groupId", groupId);
+//        intent2.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
+//        intent2.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
+//
+//        // use System.currentTimeMillis() to have a unique ID for the pending intent
+//        PendingIntent pIntent2 = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), intent2, 0);
+//
+//        Intent intent3 = new Intent(context, MyGroupActivity.class);
+//        intent3.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+//        intent3.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_REJECTED);
+//        intent3.putExtra("adminPhone", adminPhone);
+//        intent3.putExtra("groupId", groupId);
+//        intent3.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
+//        intent3.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
+//
+//        // use System.currentTimeMillis() to have a unique ID for the pending intent
+//        PendingIntent pIntent3 = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), intent3, 0);
+
+        // build notification
+        // the addAction re-use the same intent to keep the example short
+        Notification n = new Notification.Builder(context)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(R.drawable.ic_splash_launcher)
+                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                .setContentIntent(pIntent)
+                .setAutoCancel(true).build();
+//                .addAction(R.drawable.ic_sms_white_24dp, "Join", pIntent2)
+//                .addAction(R.drawable.ic_block_white_24dp, "Deny", pIntent3).build();
+//        n.defaults = Notification.DEFAULT_ALL;
+
+
+        NotificationManager notificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        notificationManager.notify(NOTIFICATION_TAG, NOTIFICATION_ID, n);
+
+    }
+
 
     public void showUnlockNotification(Context context) {
         String title = getNameByPhone(senderPhone) + " wants to unlock himself?";

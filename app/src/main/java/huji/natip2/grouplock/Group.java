@@ -63,7 +63,7 @@ public class Group extends ParseObject {
             return;
         }
         statusList.set(index, status);
-        setParticipantsStatus(statusList);
+        //setParticipantsStatus(statusList);
     }
 
     List<Object> getParticipantsPhone() {
@@ -82,6 +82,9 @@ public class Group extends ParseObject {
         }
     }
 
+    @Override public String toString() {
+        return "phones is: "+ this.getParticipantsPhone() + " status: " + getParticipantsStatus();
+    }
     void setParticipantsPhone(List<Object> phoneList) {
         if (phoneList != null) {
             addAll(KEY_PARTICIPANTS_PHONE, phoneList);
