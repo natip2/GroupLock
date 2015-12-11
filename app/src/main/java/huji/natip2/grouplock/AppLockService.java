@@ -2,14 +2,11 @@ package huji.natip2.grouplock;
 
 import android.app.ActivityManager;
 import android.app.Service;
-import android.app.usage.UsageStats;
-import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.provider.Settings;
 import android.support.annotation.Nullable;
 import android.widget.Toast;
 
@@ -160,11 +157,16 @@ public class AppLockService extends Service {
                 ActivityManager.RunningTaskInfo foregroundTaskInfo = am.getRunningTasks(1).get(0);
                 topApp = foregroundTaskInfo.topActivity.getPackageName();*/
 
+                ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+                // The first in the list of RunningTasks is always the foreground task.
+                ActivityManager.RunningTaskInfo foregroundTaskInfo = am.getRunningTasks(1).get(0);
+                topApp = foregroundTaskInfo.topActivity.getPackageName();
 
                                                     // Method 3:
-                 Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
-                startActivity(intent);
-                UsageStatsManager mUsageStatsManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+//                 Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+//                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//                startActivity(intent);
+/*                UsageStatsManager mUsageStatsManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
                 long currentTime = System.currentTimeMillis();
                 // get usage stats for the last 10 seconds
                 List<UsageStats> stats = mUsageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, currentTime - 1000 * 10, currentTime);
@@ -177,7 +179,7 @@ public class AppLockService extends Service {
                             lastUsedAppTime = usageStats.getLastTimeUsed();
                         }
                     }
-                }
+                }*/
             }
 
                     /*                // Method 3:

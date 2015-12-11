@@ -198,15 +198,17 @@ public class MyGroupActivity extends AppCompatActivity
         if (intent.hasExtra(PUSH_CODE_EXTRA)) {
             pushCode = intent.getIntExtra(PUSH_CODE_EXTRA, PUSH_CODE_NO_CODE);
             adminPhone = intent.getStringExtra("adminPhone");
-            String senderPhone = intent.getStringExtra("adminPhone");
+            String senderPhone = intent.getStringExtra("senderPhone");
             groupId = intent.getStringExtra("groupId");
             switch (pushCode) {
                 case PUSH_CODE_ACCEPTED:
                     isShowProgress = true;
                 case PUSH_CODE_REJECTED:
                 case PUSH_CODE_UNLOCK_ACCEPTED:
+                    sendUnlockResponse(senderPhone, pushCode + TO_RESPONSE_CONVERT_ADDITION);
+                    break;
                 case PUSH_CODE_UNLOCK_REJECTED:
-                    sendPushResponseToAdmin(pushCode + TO_RESPONSE_CONVERT_ADDITION);
+                    // TODO: 11/12/2015 ?
                     break;
                 case PUSH_CODE_NOT_SPECIFIED:
                     showConfirmDialog();
@@ -240,9 +242,9 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private void incrementUnlockAcceptedCount() {
+    private void incrementUnlockAcceptedCount(boolean isFromAdmin) {
         unlockAcceptedCount++;
-        if (unlockAcceptedCount > 2 || adminGroup.countParticipants() < 3) {
+        if (isFromAdmin||unlockAcceptedCount > 2) {
             unlock();
             updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
 
@@ -457,19 +459,19 @@ public class MyGroupActivity extends AppCompatActivity
         b.show();
     }
 
-    private void showUnlockConfirmDialog(String senderPhone) {
+    private void showUnlockConfirmDialog(final String senderPhone) {
         final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
         b.setIcon(android.R.drawable.ic_dialog_alert);
         String message = getNameByPhone(getApplicationContext(), senderPhone) + " wants to unlock himself?";
         b.setMessage(message);
         b.setPositiveButton("Allow", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED);
+                sendUnlockResponse(senderPhone,PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED);
             }
         });
         b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_UNLOCK_REJECTED);
+//                sendUnlockResponse(senderPhone,PUSH_RESPONSE_CODE_UNLOCK_REJECTED); // TODO: 11/12/2015 remove
             }
         });
         b.show();
@@ -613,7 +615,8 @@ public class MyGroupActivity extends AppCompatActivity
                         break;
 
                     case ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT:
-                        incrementUnlockAcceptedCount();
+                        String senderPhone = intent.getStringExtra("senderPhone");
+                        incrementUnlockAcceptedCount(senderPhone.equals(adminPhone));
                         break;
 
                     default:
@@ -794,35 +797,15 @@ public class MyGroupActivity extends AppCompatActivity
             return;
         }
         sendPush(adminPhone, myPhone, adminPhone, groupId, pushCode);
+    }
 
-//        JSONObject jsonObject;
-//        try {
-//            jsonObject = new JSONObject();
-//
-//            jsonObject.put(PUSH_CODE_EXTRA, pushCode);
-//            jsonObject.put("adminPhone", adminPhone);
-//            jsonObject.put("groupId", groupId);
-//            jsonObject.put("senderPhone", myPhone);
-//
-//            ParsePush push = new ParsePush();
-//            push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + adminPhone.replaceAll("[^0-9]+", ""));
-////            push.setChannel("t972526554339");
-//
-//            push.setData(jsonObject);
-//            push.sendInBackground(new SendCallback() {
-//                @Override
-//                public void done(ParseException e) {
-//                    if (e == null) {
-//                    } else {
-//                        Toast.makeText(getApplicationContext(),
-//                                "Push not sent: " + e.getMessage(),
-//                                Toast.LENGTH_LONG).show();// REMOVE: 15/09/2015
-//                    }
-//                }
-//            });
-//        } catch (JSONException e) {
-//            e.printStackTrace();
-//        }
+    private void sendUnlockResponse(String receiverPhone, final int pushCode) {
+        String myPhone = ParseUser.getCurrentUser().getUsername();
+        if (adminPhone == null) {
+            return;
+        }
+        unlockAcceptedCount  = 0;
+        sendPush(receiverPhone, myPhone, adminPhone, groupId, pushCode);
     }
 
     void createNewTable() {

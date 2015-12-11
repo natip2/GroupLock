@@ -87,6 +87,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 break;
             case MyGroupActivity.PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED:
                 broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT);
+                broadcastIntent.putExtra("senderPhone", senderPhone);
                 broadcaster.sendBroadcast(broadcastIntent);
                 break;
             case MyGroupActivity.PUSH_ADMIN_LOCK:
@@ -95,7 +96,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
                 break;
             case MyGroupActivity.PUSH_ADMIN_UNLOCK:
                 broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UNLOCK);
-                //broadcaster.sendBroadcast(broadcastIntent);
+                broadcaster.sendBroadcast(broadcastIntent);
                 break;
         }
     }
@@ -317,6 +318,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent2.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_UNLOCK_ACCEPTED);
         intent2.putExtra("adminPhone", adminPhone);
+        intent2.putExtra("senderPhone", senderPhone);
         intent2.putExtra("groupId", groupId);
         intent2.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
         intent2.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
@@ -328,6 +330,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         intent3.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent3.putExtra(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_UNLOCK_REJECTED);
         intent3.putExtra("adminPhone", adminPhone);
+        intent3.putExtra("senderPhone", senderPhone);
         intent3.putExtra("groupId", groupId);
         intent3.putExtra(INTENT_EXTRA_NOTIFICATION_TAG, NOTIFICATION_TAG);
         intent3.putExtra(INTENT_EXTRA_NOTIFICATION_ID, NOTIFICATION_ID);
