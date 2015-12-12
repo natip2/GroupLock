@@ -60,7 +60,7 @@ public class UserAdapter extends ArrayAdapter<UserItem> {
                 }
                 case LOCKED: {
 //                phonePlace.setTextColor(Color.BLUE);
-                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_lock_outline_black_24dp, 0, 0, 0);
+                    phonePlace.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_lock_black_24dp, 0, 0, 0);
                     break;
                 }
                 case DENIED: {// TODO: 11/12/2015 remove

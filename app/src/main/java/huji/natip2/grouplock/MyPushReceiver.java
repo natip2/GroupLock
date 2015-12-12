@@ -167,7 +167,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         broadcastIntent.putExtra(MyGroupActivity.ACTION_CODE_EXTRA, MyGroupActivity.ACTION_UPDATE);
         broadcaster.sendBroadcast(broadcastIntent);
 
-        MyGroupActivity.updateSingleUserInParse(adminPhone, groupId, senderItem);
+        MyGroupActivity.updateSingleUserInParse(senderItem);
     }
 
 
@@ -216,7 +216,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Notification n = new Notification.Builder(context)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSmallIcon(R.drawable.ic_splash_launcher)
+                .setSmallIcon(R.drawable.ic_launcher)
 //                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true)
@@ -278,7 +278,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Notification n = new Notification.Builder(context)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSmallIcon(R.drawable.ic_splash_launcher)
+                .setSmallIcon(R.drawable.ic_launcher)
                 .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true).build();
@@ -343,7 +343,7 @@ public class MyPushReceiver extends ParsePushBroadcastReceiver {
         Notification n = new Notification.Builder(context)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSmallIcon(R.drawable.ic_splash_launcher)
+                .setSmallIcon(R.drawable.ic_launcher)
 //                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                 .setContentIntent(pIntent)
                 .setAutoCancel(true)

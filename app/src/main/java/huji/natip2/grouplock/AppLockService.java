@@ -4,28 +4,27 @@ import android.app.ActivityManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.support.annotation.Nullable;
+import android.support.v4.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class AppLockService extends Service {
 
 
-    private static final String APP_TO_LOCK = "com.whatsapp";
+    static final String APP_TO_LOCK = "com.whatsapp";
 
     private static boolean isServiceRunning = false;
+    private static boolean isLockScreenVisible = false;
     private Handler handler;
 
+    private Intent broadcastIntent = new Intent("huji.natip2.grouplock.MyGroupActivity");
+    private LocalBroadcastManager broadcaster;
 
 
 /*    protected void onHandleIntent(Intent workIntent) {
@@ -41,11 +40,24 @@ public class AppLockService extends Service {
     static boolean isServiceRunning() {
         return isServiceRunning;
     }
+    static boolean isLockScreenVisible() {
+        return isLockScreenVisible;
+    }
+
+    static void setLockScreenVisible(boolean isLockScreenVisible) {
+        AppLockService.isLockScreenVisible = isLockScreenVisible;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        broadcaster = LocalBroadcastManager.getInstance(getApplicationContext());
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (!isServiceRunning) {
-            Toast.makeText(AppLockService.this, "startId: " + startId, Toast.LENGTH_SHORT).show();
+            Toast.makeText(AppLockService.this, "AppLockService startId: " + startId, Toast.LENGTH_SHORT).show();
             isServiceRunning = true;
             handler = new Handler() {
 
@@ -76,15 +88,18 @@ public class AppLockService extends Service {
                 }
             }).start();
         } else {
-            Toast.makeText(AppLockService.this, "Already running", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+            Toast.makeText(AppLockService.this, "AppLockService Already running", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         }
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onDestroy() {
-        Toast.makeText(AppLockService.this, "onDestroy()", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+        Toast.makeText(AppLockService.this, "AppLockService onDestroy()", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         isServiceRunning = false;
+        if (AppLockService.isLockScreenVisible()) {
+            LockScreen.mActivity.hideLock();
+        }
         super.onDestroy();
     }
 
@@ -94,34 +109,32 @@ public class AppLockService extends Service {
         return null;
     }
 
+    /*        ArrayList<String> apps = new ArrayList<>();
+            PackageManager packageManager = getPackageManager();
+            Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
+            mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+
+            List<ResolveInfo> appList = packageManager.queryIntentActivities(mainIntent, 0);
+            Collections.sort(appList, new ResolveInfo.DisplayNameComparator(packageManager));
+            List<PackageInfo> packs = packageManager.getInstalledPackages(0);
+            for (int i = 0; i < packs.size(); i++) {
+                PackageInfo p = packs.get(i);
+                ApplicationInfo a = p.applicationInfo;
+                // skip system apps if they shall not be included
+                if ((a.flags & ApplicationInfo.FLAG_SYSTEM) == 1) {
+                    continue;
+                }
+                apps.add(p.packageName);
+            }
+
+            ActivityManager mActivityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            List<ActivityManager.RunningAppProcessInfo> tasks = mActivityManager.getRunningAppProcesses();
+            ActivityManager.RunningAppProcessInfo ar = tasks.get(0);*/
 
     private void lockTopForegroundApp() {
-        ArrayList<String> apps = new ArrayList<>();
-        PackageManager packageManager = getPackageManager();
-        Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
-        mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-
-        List<ResolveInfo> appList = packageManager.queryIntentActivities(mainIntent, 0);
-        Collections.sort(appList, new ResolveInfo.DisplayNameComparator(packageManager));
-        List<PackageInfo> packs = packageManager.getInstalledPackages(0);
-        for (int i = 0; i < packs.size(); i++) {
-            PackageInfo p = packs.get(i);
-            ApplicationInfo a = p.applicationInfo;
-            // skip system apps if they shall not be included
-            if ((a.flags & ApplicationInfo.FLAG_SYSTEM) == 1) {
-                continue;
-            }
-            apps.add(p.packageName);
-        }
-
-        ActivityManager mActivityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        List<ActivityManager.RunningAppProcessInfo> tasks = mActivityManager.getRunningAppProcesses();
-        ActivityManager.RunningAppProcessInfo ar = tasks.get(0);
-
-        System.out.println();// REMOVE: 18/11/2015
         String activityOnTop = getForegroundApp();
-        Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
-        if (activityOnTop == null || activityOnTop.equals(APP_TO_LOCK)) {
+//        Toast.makeText(AppLockService.this, "top: " + activityOnTop, Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+        if (isServiceRunning && (activityOnTop == null || activityOnTop.equals(APP_TO_LOCK))) {
             Intent lockIntent = new Intent(this, LockScreen.class); // TODO: 13/11/2015 context
             lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY);
             startActivity(lockIntent);
@@ -129,7 +142,7 @@ public class AppLockService extends Service {
     }
 
     private String getForegroundApp() {
-        // TODO: 11/21/2015 on Sony M4 (android 5.0): topApp: null
+        // TODO: 11/21/2015 on Sony M4 (android 5.0) and OnePlus One (android 5.0 cyanogen): topApp: null
 
 
         // Method 4: track app changes 
@@ -167,7 +180,7 @@ public class AppLockService extends Service {
                 ActivityManager.RunningTaskInfo foregroundTaskInfo = am.getRunningTasks(1).get(0);
                 topApp = foregroundTaskInfo.topActivity.getPackageName();*/
 
-                                                    // Method 3:
+                // Method 3:
 //                 Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
 //                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 //                startActivity(intent);

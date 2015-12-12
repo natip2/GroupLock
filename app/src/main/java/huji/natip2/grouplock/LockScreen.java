@@ -13,6 +13,8 @@ public class LockScreen extends Activity {
     private Intent broadcastIntent = new Intent("huji.natip2.grouplock.MyGroupActivity");
     private LocalBroadcastManager broadcaster;
 
+    static LockScreen mActivity;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,8 +28,6 @@ public class LockScreen extends Activity {
         Button unlockButton = (Button) findViewById(R.id.unlock_button);
         if (MyGroupActivity.isAdmin) {
             unlockButton.setText("Unlock");
-
-
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -37,7 +37,6 @@ public class LockScreen extends Activity {
             });
         } else {
             unlockButton.setText("Request Unlock");
-
             unlockButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -46,9 +45,28 @@ public class LockScreen extends Activity {
                 }
             });
         }
+
+        mActivity = this;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        AppLockService.setLockScreenVisible(true);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        AppLockService.setLockScreenVisible(false);
     }
 
     @Override
     public void onBackPressed() {
+    }
+
+    void hideLock() {
+        finish();
+        moveTaskToBack(true);
     }
 }

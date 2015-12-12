@@ -34,6 +34,7 @@ public class GroupAdapter extends ParseQueryAdapter<Group> {
             public void onLoaded(List<Group> groupList, Exception e) {
                 if (progressDialog != null) {
                     progressDialog.dismiss();
+                    progressDialog = null;
                 }
             }
         });

@@ -75,7 +75,6 @@ import com.parse.ParsePush;
 import com.parse.ParseQuery;
 import com.parse.ParseUser;
 import com.parse.SaveCallback;
-import com.parse.SendCallback;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -113,7 +112,7 @@ public class MyGroupActivity extends AppCompatActivity
     static final int PUSH_CODE_UNLOCK_REJECTED = 9;
     static final int PUSH_CODE_UNLOCK_NOT_SPECIFIED = 10;
     static final int PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED = 11;
-    static final int PUSH_RESPONSE_CODE_UNLOCK_REJECTED = 12;
+    static final int PUSH_RESPONSE_CODE_UNLOCK_REJECTED = 12; // TODO: 12/12/2015 rejection feedback
 
     private static final int TO_RESPONSE_CONVERT_ADDITION = 3;
 
@@ -121,23 +120,22 @@ public class MyGroupActivity extends AppCompatActivity
     static final int NO_ACTION = -1;
     static final int ACTION_LOCK = 1;
     static final int ACTION_UNLOCK = 2;
-    static final int ACTION_UNLOCK_ALL = 6;
     static final int ACTION_UPDATE = 3;
     static final int ACTION_REQUEST_UNLOCK = 4;
     static final int ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT = 5;
+    static final int ACTION_UNLOCK_ALL = 6;
     static final String ACTION_CODE_EXTRA = "actionCode";
 
 
     static boolean isAdmin;
 
 
-    public Group adminGroup;
-    private int pushCode = PUSH_CODE_NO_CODE;
-
     private BroadcastReceiver receiver = null;
 
-    public String adminPhone = null;
-    public String groupId = null;
+    static Group adminGroup;
+
+    static String adminPhone = null;
+    static String groupId = null;
 
     private SearchView searchView;
     private ImageView closeBtn;
@@ -154,7 +152,6 @@ public class MyGroupActivity extends AppCompatActivity
     @Override
     protected void onNewIntent(Intent intent) {
         setIntent(intent);
-        Toast.makeText(MyGroupActivity.this, "New intent", Toast.LENGTH_SHORT).show();
         if (intent.hasExtra("countryCodeChosen")) {
             countryCodeChosen = intent.getStringExtra("countryCodeChosen");
         }
@@ -192,7 +189,6 @@ public class MyGroupActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        Toast.makeText(MyGroupActivity.this, "On resume", Toast.LENGTH_SHORT).show();
 
         // Update view and status
         isLocked = AppLockService.isServiceRunning();
@@ -201,7 +197,7 @@ public class MyGroupActivity extends AppCompatActivity
         Intent intent = getIntent();
 
         if (intent.hasExtra(PUSH_CODE_EXTRA)) {
-            pushCode = intent.getIntExtra(PUSH_CODE_EXTRA, PUSH_CODE_NO_CODE);
+            int pushCode = intent.getIntExtra(PUSH_CODE_EXTRA, PUSH_CODE_NO_CODE);
             adminPhone = intent.getStringExtra("adminPhone");
             String senderPhone = intent.getStringExtra("senderPhone");
             groupId = intent.getStringExtra("groupId");
@@ -249,10 +245,9 @@ public class MyGroupActivity extends AppCompatActivity
 
     private void incrementUnlockAcceptedCount(boolean isFromAdmin) {
         unlockAcceptedCount++;
-        if (isFromAdmin||unlockAcceptedCount > 2) {
+        if (isFromAdmin || unlockAcceptedCount > 2) {
             unlock();
-            updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
-
+            updateSingleUserInParse(UserFragment.myUserItem);
             unlockAcceptedCount = 0;
         }
     }
@@ -278,7 +273,7 @@ public class MyGroupActivity extends AppCompatActivity
             if (item.getStatus().equals(UserStatus.VERIFIED)) {
                 item.setStatus(UserStatus.LOCKED);
                 // Sends a push for a user to lock himself
-                sendPush(item.getPhone(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_LOCK);
+                sendPush(item.getPhone(), adminPhone, MyGroupActivity.PUSH_ADMIN_LOCK);
                 numLocked++;
                 modifiedUsers.add(item);
             } else if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
@@ -298,7 +293,7 @@ public class MyGroupActivity extends AppCompatActivity
         if (numSMSSent > 0) {
             Toast.makeText(MyGroupActivity.this, numSMSSent + " SMS invite(s) sent", Toast.LENGTH_SHORT).show();
         }
-        updateUsersInParse(adminPhone, groupId, modifiedUsers);
+        updateUsersInParse(modifiedUsers);
     }
 
     // TODO: 28/11/2015 remove if no admin privileges
@@ -316,16 +311,16 @@ public class MyGroupActivity extends AppCompatActivity
         for (UserItem item : UserFragment.localList) {
             if (item.getStatus().equals(UserStatus.LOCKED)) {
                 item.setStatus(UserStatus.VERIFIED);
-                    // Sends a push for a user to unlock himself
-                    sendPush(item.getPhone(), adminPhone, adminPhone, groupId, MyGroupActivity.PUSH_ADMIN_UNLOCK);
-                    numUnlocked++;
-                    modifiedUsers.add(item);
+                // Sends a push for a user to unlock himself
+                sendPush(item.getPhone(), adminPhone, MyGroupActivity.PUSH_ADMIN_UNLOCK);
+                numUnlocked++;
+                modifiedUsers.add(item);
             }
         }
         if (numUnlocked > 0) {
             Toast.makeText(MyGroupActivity.this, "Me and " + numUnlocked + " others are unlocked", Toast.LENGTH_SHORT).show();
         }
-        updateUsersInParse(adminPhone, groupId, modifiedUsers);
+        updateUsersInParse(modifiedUsers);
     }
 
     void updateView() {
@@ -333,12 +328,13 @@ public class MyGroupActivity extends AppCompatActivity
         updateFab();
         if (progressDialog != null) {
             progressDialog.dismiss();
+            progressDialog = null;
         }
     }
 
     void updateLockIcon() {
         if (isLocked) {
-            actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);
+            actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_white_36dp, 0);
             toolbar.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -356,13 +352,8 @@ public class MyGroupActivity extends AppCompatActivity
         if (UserFragment.myUserItem != null) {
             UserFragment.myUserItem.setStatus(UserStatus.LOCKED);
         }
-
-        updateView();
-/*        TextView actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
-        actionBarTitle.setCompoundDrawablePadding(25);
-        actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_outline_white_36dp, 0);*/
-
         startLockService();
+        updateView();
     }
 
     private void unlock() {
@@ -370,11 +361,8 @@ public class MyGroupActivity extends AppCompatActivity
         if (UserFragment.myUserItem != null) {
             UserFragment.myUserItem.setStatus(UserStatus.VERIFIED);
         }
-/*        TextView actionBarTitle = (TextView) findViewById(R.id.toolbar_title);
-        actionBarTitle.setCompoundDrawablePadding(25);
-        actionBarTitle.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_lock_open_white_36dp_light, 0);*/
-
         stopLockService();
+        updateView();
     }
 
     private void startLockService() {
@@ -471,7 +459,7 @@ public class MyGroupActivity extends AppCompatActivity
         b.setMessage(message);
         b.setPositiveButton("Allow", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                sendUnlockResponse(senderPhone,PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED);
+                sendUnlockResponse(senderPhone, PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED);
             }
         });
         b.setNegativeButton("Deny", new DialogInterface.OnClickListener() {
@@ -500,8 +488,7 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     static String arrangeNumberWithCountry(String phoneNumber, String countryLetters) {
-        String ret = formatToE164(phoneNumber, countryLetters);
-        return ret;
+        return formatToE164(phoneNumber, countryLetters);
     }
 
     public static String formatToE164(String phone, String userCountry) {
@@ -552,17 +539,17 @@ public class MyGroupActivity extends AppCompatActivity
         String[] projection = new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER};
         Cursor c = getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 projection, selection, null, null);
-        if (c.moveToFirst()) {
-            ret = c.getString(0);
+        if (c != null) {
+            if (c.moveToFirst()) {
+                ret = c.getString(0);
+            }
+            c.close();
         }
-        c.close();
         if (ret == null) {
             ret = "Unsaved";
         }
         return ret;
     }
-
-    private NotificationManager mNotificationManager;
 
     static String getNameByPhone(Context context, String phoneNumber) {
         ContentResolver cr = context.getContentResolver();
@@ -582,8 +569,6 @@ public class MyGroupActivity extends AppCompatActivity
 
         return contactName;
     }
-
-    public static final int PICK_CONTACT = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -668,7 +653,7 @@ public class MyGroupActivity extends AppCompatActivity
 
     boolean isAdmin() {
         String myPhone = ParseUser.getCurrentUser().getUsername();
-        isAdmin =myPhone.equals(adminPhone);
+        isAdmin = myPhone.equals(adminPhone);
         return isAdmin;
     }
 
@@ -703,19 +688,19 @@ public class MyGroupActivity extends AppCompatActivity
         String myPhone = ParseUser.getCurrentUser().getUsername();
         for (UserItem item : UserFragment.localList) {
             if (item.getStatus().equals(UserStatus.LOCKED) && !item.getPhone().equals(myPhone)) {
-                sendPush(item.getPhone(), myPhone, adminPhone, groupId, PUSH_CODE_CONFIRM_UNLOCK);
+                sendPush(item.getPhone(), myPhone, PUSH_CODE_CONFIRM_UNLOCK);
             }
         }
     }
 
 
-    static void updateSingleUserInParse(final String adminPhone, final String groupId, UserItem modifiedUser) {
+    static void updateSingleUserInParse(UserItem modifiedUser) {
         List<UserItem> modifiedUsers = new ArrayList<>();
         modifiedUsers.add(modifiedUser);
-        updateUsersInParse(adminPhone, groupId, modifiedUsers);
+        updateUsersInParse(modifiedUsers);
     }
 
-    static void updateUsersInParse(final String adminPhone, final String groupId, final List<UserItem> modifiedUsers) {
+    static void updateUsersInParse(final List<UserItem> modifiedUsers) {
         // add current person to parse
         ParseQuery<Group> query = Group.getQuery();
         query.whereEqualTo("objectId", groupId);
@@ -741,24 +726,24 @@ public class MyGroupActivity extends AppCompatActivity
     /**
      * Tell everyone (and myself) to update local list from parse
      *
-     * @param group
-     * @param adminPhone
-     * @param groupId
+     * @param group      current group
+     * @param adminPhone current group's admin
+     * @param groupId    current group's obj id
      */
     static void broadcastChange(Group group, String adminPhone, String groupId) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
         List<Object> participants = group.getParticipantsPhone();
         for (Object phoneObj : participants) {
             String phone = (String) phoneObj;
-//            if (!phone.equals(myPhone)) {// REMOVE: 28/11/2015
-            sendPush(phone, myPhone, adminPhone, groupId, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
+//            if ( !phone.equals(myPhone)) {// REMOVE: 28/11/2015
+            sendPush(phone, myPhone, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
 //            }
         }
     }
 
     private void sendPushNotification(UserItem item) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
-        sendPush(item.getPhone(), myPhone, adminPhone, groupId, PUSH_CODE_CONFIRM_NOTIFICATION);
+        sendPush(item.getPhone(), myPhone, PUSH_CODE_CONFIRM_NOTIFICATION);
     }
 
     /**
@@ -766,11 +751,9 @@ public class MyGroupActivity extends AppCompatActivity
      *
      * @param receiverPhone channel TO address
      * @param senderPhone   extra
-     * @param adminPhone    extra
-     * @param groupId       extra
      * @param pushCode      extra
      */
-    static void sendPush(String receiverPhone, String senderPhone, String adminPhone, String groupId, int pushCode) {
+    static void sendPush(String receiverPhone, String senderPhone, int pushCode) {
         JSONObject jsonObject;
         try {
             jsonObject = new JSONObject();
@@ -782,16 +765,7 @@ public class MyGroupActivity extends AppCompatActivity
             ParsePush push = new ParsePush();
             push.setChannel(LoginActivity.USER_CHANNEL_PREFIX + receiverPhone.replaceAll("[^0-9]+", ""));
             push.setData(jsonObject);
-            push.sendInBackground(new SendCallback() {
-                @Override
-                public void done(ParseException e) {
-                    if (e == null) {
-                    } else {
-                        int x = 1;
-
-                    }
-                }
-            });
+            push.sendInBackground();
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -807,7 +781,7 @@ public class MyGroupActivity extends AppCompatActivity
         if (adminPhone == null) {
             return;
         }
-        sendPush(adminPhone, myPhone, adminPhone, groupId, pushCode);
+        sendPush(adminPhone, myPhone, pushCode);
     }
 
     private void sendUnlockResponse(String receiverPhone, final int pushCode) {
@@ -815,11 +789,11 @@ public class MyGroupActivity extends AppCompatActivity
         if (adminPhone == null) {
             return;
         }
-        unlockAcceptedCount  = 0;
-        sendPush(receiverPhone, myPhone, adminPhone, groupId, pushCode);
+        unlockAcceptedCount = 0;
+        sendPush(receiverPhone, myPhone, pushCode);
     }
 
-    void createNewTable() {
+    static void createNewTable() {
         isAdmin = true;
         adminGroup = new Group();
         adminGroup.setAdmin(adminPhone);
@@ -832,10 +806,10 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    private void addAdminToList() {
+    static void addAdminToList() {
         adminGroup.putParticipant(adminPhone, UserStatus.VERIFIED);
         adminGroup.saveInBackground();
-        UserFragment.myUserItem = new UserItem(getString(R.string.group_admin_name), adminPhone, UserStatus.VERIFIED);
+        UserFragment.myUserItem = new UserItem("Group Admin", adminPhone, UserStatus.VERIFIED);
         UserFragment.localList.add(UserFragment.myUserItem);
         UserFragment.userAdapter.notifyDataSetChanged();
     }
@@ -846,8 +820,6 @@ public class MyGroupActivity extends AppCompatActivity
         String message = "Join GroupLock, " +
                 "\nAdmin phone:" + adminPhone; // TODO: 15/10/2015 url
         smsManager.sendTextMessage(item.getPhone(), null, message, null, null);
-        Toast.makeText(getApplicationContext(), "SMS Sent!",
-                Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -872,14 +844,12 @@ public class MyGroupActivity extends AppCompatActivity
             return true;
         }*/
         if (id == R.id.send_to_all) {
-//           sendRequestToAll();// UNCOMMENT: 19/11/2015
-            if (isLocked) {
-                unlock();
-                MyGroupActivity.updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
-            } else {
-                lock();
-                MyGroupActivity.updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
-            }
+            sendRequestToAll();// UNCOMMENT: 19/11/2015
+//            if (isLocked) {
+//                unlock();
+//            } else {
+//                lock();
+//            }
             return true;
         }
 
@@ -915,7 +885,7 @@ public class MyGroupActivity extends AppCompatActivity
             return UserFragment.newInstance("A", "B");
         } else if (id == R.id.nav_history) {
             return HistoryFragment.newInstance("C", "D");
-        } else if (id == R.id.nav_slideshow) {
+        }/* else if (id == R.id.nav_slideshow) {
 
         } else if (id == R.id.nav_manage) {
 
@@ -924,7 +894,7 @@ public class MyGroupActivity extends AppCompatActivity
 
         } else if (id == R.id.nav_send) {
 
-        }
+        }*/
         return null;
     }
 

@@ -13,6 +13,7 @@ public class Group extends ParseObject {
     static final String KEY_ADMIN = "admin";
     static final String KEY_PARTICIPANTS_PHONE = "participantsPhone";
     static final String KEY_PARTICIPANTS_STATUS = "participantsStatus";
+    static final String KEY_IS_ACTIVE = "isActive";
 
     /**
      * Adds new or updates existing
@@ -82,9 +83,11 @@ public class Group extends ParseObject {
         }
     }
 
-    @Override public String toString() {
-        return "phones is: "+ this.getParticipantsPhone() + " status: " + getParticipantsStatus();
+    @Override
+    public String toString() {
+        return "phones is: " + this.getParticipantsPhone() + " status: " + getParticipantsStatus();
     }
+
     void setParticipantsPhone(List<Object> phoneList) {
         if (phoneList != null) {
             addAll(KEY_PARTICIPANTS_PHONE, phoneList);
@@ -103,6 +106,14 @@ public class Group extends ParseObject {
         } else {
             remove(KEY_ADMIN);
         }
+    }
+
+    String isActive() {
+        return getString(KEY_IS_ACTIVE);
+    }
+
+    void setActive(boolean isActive) {
+        put(KEY_IS_ACTIVE, isActive);
     }
 
     static ParseQuery<Group> getQuery() {

@@ -67,7 +67,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     private View mEmptyView;
     private boolean isInSession = false;
     protected String myNumber;
-    private boolean isAdmin;
 
     public static void addPerson(UserItem user) {
         localList.add(user);
@@ -79,62 +78,12 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
         userAdapter = new UserAdapter(getActivity(), R.layout.user_list_item, localList);
         mListView.setEmptyView(mEmptyView);
         mListView.setAdapter(userAdapter);
-        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
-                final UserItem item = localList.get(position);
-                final AlertDialog.Builder b = new AlertDialog.Builder(getActivity());
-                b.setIcon(android.R.drawable.ic_dialog_alert);
-                final String number = item.getPhone();
-                b.setMessage(item.getDisplayName());
-
-                if (canRemove(item)) {
-                    b.setPositiveButton("Remove from list", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            //todo open the lock for this number
-                            localList.remove(position);
-                            userAdapter.notifyDataSetChanged();
-                            if (isVerified(item) && ((MyGroupActivity) getActivity()).isAdmin()) {
-                                removeFromParse(number);
-                                MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
-                            }
-                        }
-                    });
-                }
-
-                if (item.getStatus().equals(UserStatus.DOES_NOT_HAVE_APP)) {
-                    b.setNegativeButton("Invite to GroupLock", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            sendSmsRequest(item);
-                            Toast.makeText(getActivity(), "SMS invite sent", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                } else {
-                    b.setNegativeButton("Send lock request", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            sendPushNotification(item);
-                            Toast.makeText(getActivity(), "Request sent", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-
-                }
-                b.show();
-            }
-        });
     }
+
 
     private boolean isVerified(UserItem item) {
         return item.getStatus().equals(UserStatus.VERIFIED);
     }
-
-
-    private boolean canRemove(UserItem item) {
-        if (((MyGroupActivity) getActivity()).isAdmin()) {
-            return true;
-        }
-        return !isVerified(item);
-    }
-
 
 
     private void sendPushNotification(UserItem item) {
@@ -196,7 +145,6 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
             }
         });
     }
-
 
 
     // TODO: Rename and change types of parameters
@@ -266,13 +214,92 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     }
 
     @Override
-    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+    public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
         if (null != mListener) {
-            // Notify the active callbacks interface (the activity, if the
-            // fragment is attached to one) that an item has been selected.
-//            mListener.onFragmentInteraction(DummyContent.ITEMS.get(position).id);
-            // TODO: 07/10/2015
+            final UserItem item = localList.get(position);
+            final AlertDialog.Builder b = new AlertDialog.Builder(getActivity());
+            b.setIcon(android.R.drawable.ic_dialog_alert);
+            final String number = item.getPhone();
+            b.setMessage(item.getDisplayName());
+
+            if (MyGroupActivity.isAdmin) {
+
+            }
+
+            switch (item.getStatus()) {
+                case DOES_NOT_HAVE_APP:
+                    b.setPositiveButton("SMS-invite", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            sendSmsRequest(item);
+                            Toast.makeText(getActivity(), "SMS invite sent", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    b.setNegativeButton("Remove", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            //todo open the lock for this number
+                            localList.remove(position);
+                            userAdapter.notifyDataSetChanged();
+                            if (isVerified(item)) {
+                                removeFromParse(number);
+                                MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
+                            }
+                        }
+                    });
+                    break;
+                case HAS_APP:
+                    b.setPositiveButton("Invite", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            String myPhone = ParseUser.getCurrentUser().getUsername();
+                            if (MyGroupActivity.adminPhone == null) {
+                                MyGroupActivity.adminPhone = myPhone;
+                                MyGroupActivity.createNewTable();
+                            }
+                            MyGroupActivity.sendPush(item.getPhone(), myPhone, MyGroupActivity.PUSH_CODE_CONFIRM_UNLOCK);
+                            Toast.makeText(getActivity(), "Request sent", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    b.setNegativeButton("Remove", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            //todo open the lock for this number
+                            localList.remove(position);
+                            userAdapter.notifyDataSetChanged();
+                            if (isVerified(item)) {
+                                removeFromParse(number);
+                                MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
+                            }
+                        }
+                    });
+                    break;
+                case LOCKED:
+                    if (MyGroupActivity.isAdmin) {
+                        b.setPositiveButton("Unlock", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                item.setStatus(UserStatus.VERIFIED);
+                                // Sends a push for a user to unlock himself
+                                MyGroupActivity.sendPush(item.getPhone(), MyGroupActivity.adminPhone, MyGroupActivity.PUSH_ADMIN_UNLOCK);
+                                MyGroupActivity.updateSingleUserInParse(item);
+                                Toast.makeText(getActivity(), "User unlocked", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                    break;
+                case VERIFIED:
+                    if (MyGroupActivity.isAdmin) {
+                        b.setPositiveButton("Lock", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                item.setStatus(UserStatus.LOCKED);
+                                // Sends a push for a user to unlock himself
+                                MyGroupActivity.sendPush(item.getPhone(), MyGroupActivity.adminPhone, MyGroupActivity.PUSH_ADMIN_LOCK);
+                                MyGroupActivity.updateSingleUserInParse(item);
+                                Toast.makeText(getActivity(), "User locked", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                    break;
+            }
+            b.show();
         }
+
     }
 
     /**
