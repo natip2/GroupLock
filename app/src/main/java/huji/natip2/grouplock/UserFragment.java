@@ -89,9 +89,9 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     private void sendPushNotification(UserItem item) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
 
-        if (((MyGroupActivity) getActivity()).adminPhone == null) {
-            ((MyGroupActivity) getActivity()).adminPhone = myPhone;
-            ((MyGroupActivity) getActivity()).createNewTable();
+        if (MyGroupActivity.adminPhone == null) {
+            MyGroupActivity.adminPhone = myPhone;
+            MyGroupActivity.createNewTable();
         }
 
         JSONObject jsonObject;
@@ -99,8 +99,8 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
             jsonObject = new JSONObject();
 
             jsonObject.put(MyGroupActivity.PUSH_CODE_EXTRA, MyGroupActivity.PUSH_CODE_CONFIRM_NOTIFICATION);
-            jsonObject.put("adminPhone", ((MyGroupActivity) getActivity()).adminPhone);
-            jsonObject.put("groupId", ((MyGroupActivity) getActivity()).groupId);
+            jsonObject.put("adminPhone", MyGroupActivity.adminPhone);
+            jsonObject.put("groupId", MyGroupActivity.groupId);
             jsonObject.put("senderPhone", myPhone);
 
 
@@ -126,7 +126,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     private void sendSmsRequest(UserItem item) {
         SmsManager smsManager = SmsManager.getDefault();
         String message = "Join GroupLock, " +
-                "\nAdmin phone:" + ((MyGroupActivity) getActivity()).adminPhone; // TODO: 15/10/2015 url
+                "\nAdmin phone:" + MyGroupActivity.adminPhone; // TODO: 15/10/2015 url
         smsManager.sendTextMessage(item.getPhone(), null, message, null, null);
         Toast.makeText(getActivity(), "SMS Sent!",
                 Toast.LENGTH_LONG).show();
@@ -134,7 +134,7 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
 
     private void removeFromParse(final String number) {
         ParseQuery<Group> query = Group.getQuery();
-        query.whereEqualTo("objectId", ((MyGroupActivity) getActivity()).groupId);
+        query.whereEqualTo("objectId", MyGroupActivity.groupId);
         query.getFirstInBackground(new GetCallback<Group>() {
             @Override
             public void done(Group group, ParseException e) {
@@ -216,6 +216,8 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
     @Override
     public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
         if (null != mListener) {
+            String myPhone = ParseUser.getCurrentUser().getUsername();
+
             final UserItem item = localList.get(position);
             final AlertDialog.Builder b = new AlertDialog.Builder(getActivity());
             b.setIcon(android.R.drawable.ic_dialog_alert);
@@ -236,13 +238,8 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                     });
                     b.setNegativeButton("Remove", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
-                            //todo open the lock for this number
                             localList.remove(position);
                             userAdapter.notifyDataSetChanged();
-                            if (isVerified(item)) {
-                                removeFromParse(number);
-                                MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
-                            }
                         }
                     });
                     break;
@@ -260,38 +257,37 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
                     });
                     b.setNegativeButton("Remove", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
-                            //todo open the lock for this number
                             localList.remove(position);
                             userAdapter.notifyDataSetChanged();
-                            if (isVerified(item)) {
-                                removeFromParse(number);
-                                MyGroupActivity.broadcastChange(((MyGroupActivity) getActivity()).adminGroup, ((MyGroupActivity) getActivity()).adminPhone, ((MyGroupActivity) getActivity()).groupId);
-                            }
                         }
                     });
                     break;
                 case LOCKED:
-                    if (MyGroupActivity.isAdmin) {
+                    if (MyGroupActivity.isAdmin && !myPhone.equals(item.getPhone())) {
                         b.setPositiveButton("Unlock", new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int whichButton) {
-                                item.setStatus(UserStatus.VERIFIED);
-                                // Sends a push for a user to unlock himself
-                                MyGroupActivity.sendPush(item.getPhone(), MyGroupActivity.adminPhone, MyGroupActivity.PUSH_ADMIN_UNLOCK);
-                                MyGroupActivity.updateSingleUserInParse(item);
-                                Toast.makeText(getActivity(), "User unlocked", Toast.LENGTH_SHORT).show();
+                                unlockUser(item);
+                            }
+
+                        });
+                        b.setNegativeButton("Remove", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                removeUser(item, position);
                             }
                         });
                     }
+
                     break;
                 case VERIFIED:
-                    if (MyGroupActivity.isAdmin) {
+                    if (MyGroupActivity.isAdmin && !myPhone.equals(item.getPhone())) {
                         b.setPositiveButton("Lock", new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int whichButton) {
-                                item.setStatus(UserStatus.LOCKED);
-                                // Sends a push for a user to unlock himself
-                                MyGroupActivity.sendPush(item.getPhone(), MyGroupActivity.adminPhone, MyGroupActivity.PUSH_ADMIN_LOCK);
-                                MyGroupActivity.updateSingleUserInParse(item);
-                                Toast.makeText(getActivity(), "User locked", Toast.LENGTH_SHORT).show();
+                                lockUser(item);
+                            }
+                        });
+                        b.setNegativeButton("Remove", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                removeUser(item, position);
                             }
                         });
                     }
@@ -300,6 +296,32 @@ public class UserFragment extends Fragment implements ListView.OnItemClickListen
             b.show();
         }
 
+    }
+
+    private void lockUser(UserItem item) {
+        item.setStatus(UserStatus.LOCKED);
+        // Sends a push for a user to unlock himself
+        MyGroupActivity.sendPush(item.getPhone(), MyGroupActivity.adminPhone, MyGroupActivity.PUSH_ADMIN_LOCK);
+        MyGroupActivity.updateSingleUserInParse(item);
+        Toast.makeText(getActivity(), "User locked", Toast.LENGTH_SHORT).show();
+    }
+
+    private void unlockUser(UserItem item) {
+        item.setStatus(UserStatus.VERIFIED);
+        // Sends a push for a user to unlock himself
+        MyGroupActivity.sendPush(item.getPhone(), MyGroupActivity.adminPhone, MyGroupActivity.PUSH_ADMIN_UNLOCK);
+        MyGroupActivity.updateSingleUserInParse(item);
+        Toast.makeText(getActivity(), "User unlocked", Toast.LENGTH_SHORT).show();
+    }
+
+    static void removeUser(UserItem item, int position) {
+        item.setStatus(UserStatus.REMOVED);
+        // Sends a push for a user to unlock and clear himself
+        MyGroupActivity.sendPush(item.getPhone(), MyGroupActivity.adminPhone, MyGroupActivity.PUSH_ADMIN_CLEAR);
+        MyGroupActivity.updateSingleUserInParse(item);
+        localList.remove(position);
+        userAdapter.notifyDataSetChanged();
+//        Toast.makeText(getActivity(), "User removed", Toast.LENGTH_SHORT).show();
     }
 
     /**

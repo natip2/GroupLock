@@ -50,8 +50,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.telephony.SmsManager;
 import android.telephony.TelephonyManager;
+import android.text.Html;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.method.LinkMovementMethod;
 import android.text.style.ImageSpan;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -112,7 +114,12 @@ public class MyGroupActivity extends AppCompatActivity
     static final int PUSH_CODE_UNLOCK_REJECTED = 9;
     static final int PUSH_CODE_UNLOCK_NOT_SPECIFIED = 10;
     static final int PUSH_RESPONSE_CODE_UNLOCK_ACCEPTED = 11;
-    static final int PUSH_RESPONSE_CODE_UNLOCK_REJECTED = 12; // TODO: 12/12/2015 rejection feedback
+    static final int PUSH_CODE_CLEAR_REQUEST = 12;
+    static final int PUSH_ADMIN_CLEAR = 13;
+    static final int PUSH_CODE_CLEAR_NOT_SPECIFIED = 14;
+    static final int PUSH_CODE_CLEAR_ACCEPTED = 15;
+    static final int PUSH_CODE_CLEAR_REJECTED = 16;
+
 
     private static final int TO_RESPONSE_CONVERT_ADDITION = 3;
 
@@ -124,6 +131,7 @@ public class MyGroupActivity extends AppCompatActivity
     static final int ACTION_REQUEST_UNLOCK = 4;
     static final int ACTION_INCREMENT_UNLOCK_ACCEPTED_COUNT = 5;
     static final int ACTION_UNLOCK_ALL = 6;
+    static final int ACTION_CLEAR = 7;
     static final String ACTION_CODE_EXTRA = "actionCode";
 
 
@@ -148,6 +156,8 @@ public class MyGroupActivity extends AppCompatActivity
     private Toolbar toolbar;
     private ProgressDialog progressDialog;
     private boolean isShowProgress = false;
+    private MenuItem destroyMenuItem;
+    private MenuItem exitMenuItem;
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -199,6 +209,9 @@ public class MyGroupActivity extends AppCompatActivity
         if (intent.hasExtra(PUSH_CODE_EXTRA)) {
             int pushCode = intent.getIntExtra(PUSH_CODE_EXTRA, PUSH_CODE_NO_CODE);
             adminPhone = intent.getStringExtra("adminPhone");
+            // make sure the options are updated
+            supportInvalidateOptionsMenu();
+
             String senderPhone = intent.getStringExtra("senderPhone");
             groupId = intent.getStringExtra("groupId");
             switch (pushCode) {
@@ -207,6 +220,9 @@ public class MyGroupActivity extends AppCompatActivity
                 case PUSH_CODE_REJECTED:
                 case PUSH_CODE_UNLOCK_ACCEPTED:
                     sendUnlockResponse(senderPhone, pushCode + TO_RESPONSE_CONVERT_ADDITION);
+                    break;
+                case PUSH_CODE_CLEAR_ACCEPTED:
+                    removeUserFromList(senderPhone);
                     break;
                 case PUSH_CODE_UNLOCK_REJECTED:
                     // TODO: 11/12/2015 ?
@@ -230,6 +246,21 @@ public class MyGroupActivity extends AppCompatActivity
                 manager.cancel(tag, id);
             }
             intent.removeExtra(MyPushReceiver.INTENT_EXTRA_NOTIFICATION_TAG);
+        }
+    }
+
+    private void removeUserFromList(String phone) {
+        int index = -1;
+        UserItem item = null;
+        for (int i = 0; i < UserFragment.localList.size(); i++) {
+            item = UserFragment.localList.get(i);
+            if (item.getPhone().equals(phone)) {
+                index = i;
+                break;
+            }
+        }
+        if (index != -1) {
+            UserFragment.removeUser(item, index);
         }
     }
 
@@ -321,6 +352,25 @@ public class MyGroupActivity extends AppCompatActivity
             Toast.makeText(MyGroupActivity.this, "Me and " + numUnlocked + " others are unlocked", Toast.LENGTH_SHORT).show();
         }
         updateUsersInParse(modifiedUsers);
+    }
+
+    private void clearAll() {
+        if (!isAdmin()) {
+            return;
+        }
+        adminGroup.setActive(false);
+        String myPhone = ParseUser.getCurrentUser().getUsername();
+        int numRemoved = 0;
+        for (UserItem item : UserFragment.localList) {
+            // Sends a push for a user to clear his local list and unlock
+            if (!item.getPhone().equals(myPhone)) {
+                sendPush(item.getPhone(), adminPhone, MyGroupActivity.PUSH_ADMIN_CLEAR);
+                numRemoved++;
+            }
+        }
+        if (numRemoved > 0) {
+            Toast.makeText(MyGroupActivity.this, numRemoved + " users removed", Toast.LENGTH_SHORT).show();
+        }
     }
 
     void updateView() {
@@ -446,7 +496,7 @@ public class MyGroupActivity extends AppCompatActivity
             public void onClick(DialogInterface dialog, int whichButton) {
                 progressDialog = ProgressDialog.show(MyGroupActivity.this, null,
                         "Loading group", true, false);
-                sendPushResponseToAdmin(PUSH_RESPONSE_CODE_ACCEPTED);
+                sendPushToAdmin(PUSH_RESPONSE_CODE_ACCEPTED);
             }
         });
         b.show();
@@ -596,6 +646,11 @@ public class MyGroupActivity extends AppCompatActivity
 //                        updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
                         break;
 
+                    case ACTION_CLEAR:
+                        clearGroup();
+//                        updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
+                        break;
+
                     case ACTION_UNLOCK_ALL:
                         unlockAll();
 //                        updateSingleUserInParse(adminPhone, groupId, UserFragment.myUserItem);
@@ -662,6 +717,7 @@ public class MyGroupActivity extends AppCompatActivity
         if (adminPhone == null) {
             adminPhone = myPhone;
             createNewTable();
+            supportInvalidateOptionsMenu();
         }
         int numNotiSent = 0;
         int numSMSSent = 0;
@@ -716,28 +772,31 @@ public class MyGroupActivity extends AppCompatActivity
                 group.saveInBackground(new SaveCallback() {
                     @Override
                     public void done(ParseException e) {
-                        broadcastChange(group, adminPhone, groupId);
+                        broadcastChange(group);
                     }
                 });
             }
         });
     }
 
+
     /**
      * Tell everyone (and myself) to update local list from parse
      *
-     * @param group      current group
-     * @param adminPhone current group's admin
-     * @param groupId    current group's obj id
+     * @param group current group
      */
-    static void broadcastChange(Group group, String adminPhone, String groupId) {
+    static void broadcastChange(Group group) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
         List<Object> participants = group.getParticipantsPhone();
-        for (Object phoneObj : participants) {
-            String phone = (String) phoneObj;
-//            if ( !phone.equals(myPhone)) {// REMOVE: 28/11/2015
-            sendPush(phone, myPhone, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
-//            }
+        List<Object> statuses = group.getParticipantsStatus();
+        for (int i = 0; i < participants.size(); i++) {
+
+            String phone = (String) participants.get(i);
+            UserStatus status = UserStatus.valueOf((String) statuses.get(i));
+            if (!status.equals(UserStatus.REMOVED)) {// REMOVE: 28/11/2015
+                sendPush(phone, myPhone, PUSH_CODE_UPDATE_LIST_FROM_PARSE);
+            }
+
         }
     }
 
@@ -776,7 +835,7 @@ public class MyGroupActivity extends AppCompatActivity
      *
      * @param pushCode to deliver to the other end
      */
-    private void sendPushResponseToAdmin(final int pushCode) {
+    private void sendPushToAdmin(final int pushCode) {
         String myPhone = ParseUser.getCurrentUser().getUsername();
         if (adminPhone == null) {
             return;
@@ -797,6 +856,7 @@ public class MyGroupActivity extends AppCompatActivity
         isAdmin = true;
         adminGroup = new Group();
         adminGroup.setAdmin(adminPhone);
+        adminGroup.setActive(true);
         addAdminToList();
         try {
             adminGroup.save();
@@ -844,12 +904,33 @@ public class MyGroupActivity extends AppCompatActivity
             return true;
         }*/
         if (id == R.id.send_to_all) {
-            sendRequestToAll();// UNCOMMENT: 19/11/2015
-//            if (isLocked) {
-//                unlock();
-//            } else {
-//                lock();
-//            }
+            sendRequestToAll();
+            return true;
+        }
+        if (id == R.id.admin_destroy_group) {
+            clearAll();
+            clearGroup();
+            return true;
+        }
+        if (id == R.id.clear_and_exit) {
+            exitFromGroup();
+
+            return true;
+        }
+        if (id == R.id.about_app) {
+            TextView content = (TextView) getLayoutInflater().inflate(R.layout.about_view, null);
+            content.setMovementMethod(LinkMovementMethod.getInstance());
+            content.setText(Html.fromHtml(getString(R.string.about_body)));
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.action_about_app)
+                    .setView(content)
+                    .setInverseBackgroundForced(true)// FIXME: 06/09/2015
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                        }
+                    }).create().show();
             return true;
         }
 
@@ -857,11 +938,53 @@ public class MyGroupActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
 
+    private void exitFromGroup() {
+        final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
+        b.setIcon(android.R.drawable.ic_dialog_alert);
+        String message = "Ask admin to exit? (unlock if necessary)";
+        b.setMessage(message);
+        b.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                sendPushToAdmin(PUSH_CODE_CLEAR_REQUEST);
+            }
+        });
+        b.setNegativeButton("No", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+//                sendUnlockResponse(senderPhone,PUSH_RESPONSE_CODE_UNLOCK_REJECTED); // TODO: 11/12/2015 remove
+            }
+        });
+        b.show();
+    }
+
+    private void clearGroup() {
+        unlock();
+        adminPhone = null;
+        groupId = null;
+        UserFragment.localList.clear();
+        recreate();
+    }
+
+    private void updateMenuItemsVisibility() {
+        destroyMenuItem.setVisible(isAdmin || adminPhone == null);
+        exitMenuItem.setVisible(!isAdmin || adminPhone == null);
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.my_group, menu);
-        return true;
+        destroyMenuItem = menu.findItem(R.id.admin_destroy_group);
+        exitMenuItem = menu.findItem(R.id.clear_and_exit);
+
+        updateMenuItemsVisibility();
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        return super.onPrepareOptionsMenu(menu);
     }
 
     @SuppressWarnings("StatementWithEmptyBody")

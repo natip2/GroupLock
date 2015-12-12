@@ -9,5 +9,6 @@ public enum UserStatus {
     DENIED,
     VERIFIED,
     LOCKED,
-    WAIT_FOR_VERIFICATION
+    WAIT_FOR_VERIFICATION,
+    REMOVED
 }

@@ -38,8 +38,9 @@ public class UserAdapter extends ArrayAdapter<UserItem> {
         } else {
             phonePlace.setTextColor(Color.DKGRAY);
         }
-        if (name != null && name.equals(mContext.getString(R.string.group_admin_name))) {
+        if (phone.equals(MyGroupActivity.adminPhone)) {
             phonePlace.setTypeface(null, Typeface.BOLD);
+            title+= " (admin)";
         }
 
         phonePlace.setText(title);

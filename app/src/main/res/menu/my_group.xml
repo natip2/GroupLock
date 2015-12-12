@@ -16,5 +16,25 @@
         android:title="@string/action_send_to_all"
         app:showAsAction="ifRoom" />
 
+    <item
+        android:id="@+id/admin_destroy_group"
+        android:icon="@drawable/ic_clear_all_white_24dp"
+        android:orderInCategory="200"
+        android:title="@string/action_destroy_group"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/clear_and_exit"
+        android:icon="@drawable/ic_clear_white_24dp"
+        android:orderInCategory="200"
+        android:title="@string/action_clear_and_exit"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/about_app"
+        android:icon="@drawable/ic_clear_white_24dp"
+        android:orderInCategory="200"
+        android:title="@string/action_about_app"
+        app:showAsAction="never" />
+
 
 </menu>

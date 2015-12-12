@@ -2,23 +2,23 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <group android:checkableBehavior="single">
-        <item android:id="@+id/nav_main" android:icon="@android:drawable/ic_menu_camera"
-            android:title="Main" />
+        <item android:id="@+id/nav_main" android:icon="@android:drawable/ic_menu_my_calendar"
+            android:title="Active group" />
         <item android:id="@+id/nav_history" android:icon="@android:drawable/ic_menu_gallery"
             android:title="Group History" />
-        <item android:id="@+id/nav_slideshow" android:icon="@android:drawable/ic_menu_slideshow"
-            android:title="Slideshow" />
+<!--        <item android:id="@+id/nav_slideshow" android:icon="@android:drawable/ic_menu_slideshow"
+            android:title="Gallery - coming soon..." />-->
         <item android:id="@+id/nav_manage" android:icon="@android:drawable/ic_menu_manage"
-            android:title="Tools" />
+            android:title="Settings - coming soon..." />
     </group>
 
-    <item android:title="Communicate">
+<!--    <item android:title="Communicate">
         <menu>
             <item android:id="@+id/nav_share" android:icon="@android:drawable/ic_menu_share"
-                android:title="Share" />
-            <item android:id="@+id/nav_send" android:icon="@android:drawable/ic_menu_send"
-                android:title="Send" />
+                android:title="Share - coming soon..." />
+&lt;!&ndash;            <item android:id="@+id/nav_send" android:icon="@android:drawable/ic_menu_send"
+                android:title="Send" />&ndash;&gt;
         </menu>
-    </item>
+    </item>-->
 
 </menu>
