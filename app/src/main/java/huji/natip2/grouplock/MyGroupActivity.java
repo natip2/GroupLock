@@ -68,6 +68,9 @@ import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.github.amlcurran.showcaseview.ShowcaseView;
+import com.github.amlcurran.showcaseview.targets.Target;
+import com.github.amlcurran.showcaseview.targets.ViewTarget;
 import com.google.i18n.phonenumbers.NumberParseException;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.Phonenumber;
@@ -90,7 +93,7 @@ import java.util.Locale;
 
 
 public class MyGroupActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, HistoryFragment.OnFragmentInteractionListener, UserFragment.OnFragmentInteractionListener {
+        implements NavigationView.OnNavigationItemSelectedListener, HistoryFragment.OnFragmentInteractionListener, UserFragment.OnFragmentInteractionListener, View.OnClickListener {
 
 
     final static int MAIN_FRAGMENT_INDEX = 0;
@@ -133,6 +136,7 @@ public class MyGroupActivity extends AppCompatActivity
     static final int ACTION_UNLOCK_ALL = 6;
     static final int ACTION_CLEAR = 7;
     static final String ACTION_CODE_EXTRA = "actionCode";
+    private final static String DEMO_ACTIVITY_ID = "demo-main-activity";;
 
 
     static boolean isAdmin;
@@ -144,6 +148,8 @@ public class MyGroupActivity extends AppCompatActivity
 
     static String adminPhone = null;
     static String groupId = null;
+
+    private boolean showDemo = true;
 
     private SearchView searchView;
     private ImageView closeBtn;
@@ -158,6 +164,9 @@ public class MyGroupActivity extends AppCompatActivity
     private boolean isShowProgress = false;
     private MenuItem destroyMenuItem;
     private MenuItem exitMenuItem;
+    private ShowcaseView showcasedView;
+    private int counter=0;
+    private ViewTarget t1;
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -272,6 +281,20 @@ public class MyGroupActivity extends AppCompatActivity
             progressDialog = ProgressDialog.show(MyGroupActivity.this, null,
                     "Loading group", true, false);
         }
+//        displayDemoIfNeeded();
+//        View showcasedView = findViewById(R.id.fab);
+//        ViewTarget target = new ViewTarget(showcasedView);
+//        ShowcaseView.insertShowcaseView(target, this, R.string.showcase_title, R.string.showcase_details);
+
+        t1 = new ViewTarget(R.id.fab, this);
+        showcasedView = new ShowcaseView.Builder(this)
+                .setTarget(Target.NONE)
+                .setOnClickListener(this)
+                .setContentTitle("Floating action button")
+                .setContentText("Main action: send, lock, unlock")
+                .setStyle(R.style.MyShowcaseStyle)
+                .build();
+        showcasedView.setButtonText("Demo");
     }
 
     private void incrementUnlockAcceptedCount(boolean isFromAdmin) {
@@ -691,6 +714,44 @@ public class MyGroupActivity extends AppCompatActivity
         onNavigationItemSelected(null);
         setupSearchView();
     }
+
+/*    // --------------------------------------------------
+    // ----------RoboDemo related methods
+    // --------------------------------------------------
+
+    *//**
+     * Displays demo if never show again has never been checked by the user.
+     *//*
+    private void displayDemoIfNeeded() {
+
+        boolean neverShowDemoAgain = RoboDemo.isNeverShowAgain(this, DEMO_ACTIVITY_ID);
+
+        if ( !neverShowDemoAgain && showDemo ) {
+            showDemo = false;
+            ArrayList<LabeledPoint> arrayListPoints = new ArrayList< LabeledPoint >();
+
+            // create a list of LabeledPoints
+            LabeledPoint p = new LabeledPoint( fab, getString( R.string.text_move_demo_step_1 ) );
+            arrayListPoints.add( p );
+
+            p = new LabeledPoint( this, 0.95f, 0.05f, getString( R.string.text_move_demo_step_2 ) );
+            arrayListPoints.add( p );
+
+            // start DemoActivity.
+            Intent intent = new Intent( this, MainActivityDemoActivity.class );
+            RoboDemo.prepareDemoActivityIntent( intent, DEMO_ACTIVITY_ID, arrayListPoints );
+            startActivity(intent);
+        }
+    }
+
+    *//**
+     * Reset the checkbox so that RoboDemo will be shown again even if user checked it previously.
+     *//*
+    private void showDemoAgain() {
+        RoboDemo.showAgain( this, DEMO_ACTIVITY_ID );
+        this.showDemo = true;
+        displayDemoIfNeeded();
+    }*/
 
     private void showUnlockPushDialog() {
         final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
@@ -1154,5 +1215,30 @@ public class MyGroupActivity extends AppCompatActivity
             name += " (" + phone + ")";
         }
         return name;
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (counter) {
+            case 0:
+                showcasedView.setShowcase(t1, true);
+                showcasedView.setContentTitle("FAB");
+                showcasedView.setContentText("desc");
+                break;
+            case 1:
+                showcasedView.hide();
+/*                        case 0:
+                showcasedView.setShowcase(t1, true);
+                showcasedView.setContentTitle("FAB");
+                showcasedView.setContentText("desc");
+                break;
+                        case 0:
+                showcasedView.setShowcase(t1, true);
+                showcasedView.setContentTitle("FAB");
+                showcasedView.setContentText("desc");
+                break;*/
+break;
+        }
+        counter++;
     }
 }

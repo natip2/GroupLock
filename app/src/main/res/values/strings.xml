@@ -81,4 +81,8 @@
             <br/> \t\t
             <br/> \t\t
              <br/>             * Synchronize debt with the owner.<br/> \t\t\t* Chat with the owner.<br/> \t\t\t* All the data is synced to cloud.<br/>     ]]></string>
+    <string name="text_move_demo_step_1">Main action. After group creation only available for admin.</string>
+    <string name="text_move_demo_step_2">Second button demo</string>
+    <string name="showcase_title">Floating action</string>
+    <string name="showcase_details">Main actions, as send, lock and unlock</string>
 </resources>

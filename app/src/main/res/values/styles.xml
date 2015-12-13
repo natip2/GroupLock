@@ -49,4 +49,14 @@
         <item name="android:textSize">@dimen/font_size_description</item>
         <item name="android:singleLine">true</item>
     </style>
+
+    <style name="Title" parent="TextAppearance.ShowcaseView.Title">
+        <item name="android:textColor">#FFF</item>
+    </style>
+
+    <style name="MyShowcaseStyle" parent="ShowcaseView.Light">
+        <item name="sv_backgroundColor">#5cFF0000</item>
+        <item name="sv_showcaseColor">#000</item>
+        <item name="sv_titleTextAppearance">@style/Title</item>
+    </style>
 </resources>

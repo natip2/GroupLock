@@ -40,7 +40,6 @@
             android:name=".AppLockService"
             android:exported="false" />
 
-
         <activity
             android:name=".LoginActivity"
             android:label="@string/app_name"
