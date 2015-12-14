@@ -46,6 +46,7 @@ public class LoginActivity extends AppCompatActivity {
     final private String DEFAULT_PASS = "55555";
     final private boolean VERIFICATION = false;
     final private String DEFAULT_COUNTRY_CODE = "+972";
+    static boolean needTutorial = false;
 
     private Intent addIntent;
     private EditText phoneField;
@@ -83,6 +84,7 @@ public class LoginActivity extends AppCompatActivity {
             //user is exist!
             Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
             intent.putExtra("countryCodeChosen", countryCodeChosen);
+            needTutorial = true; //todo change to true
             startActivity(intent);
             finish();
             return;
@@ -302,6 +304,7 @@ public class LoginActivity extends AppCompatActivity {
                     subscribeToPush(username);
                     Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
                     intent.putExtra("countryCodeChosen", countryCodeChosen);
+                    needTutorial=  true;
                     startActivity(intent);
                     finish();
                 } else {
@@ -331,6 +334,7 @@ public class LoginActivity extends AppCompatActivity {
                     subscribeToPush(username);
                     Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
                     intent.putExtra("countryCodeChosen", countryCodeChosen);
+                    needTutorial=  true;
                     startActivity(intent);
                     finish();
                 } else {

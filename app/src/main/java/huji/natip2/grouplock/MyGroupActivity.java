@@ -51,6 +51,7 @@ import android.support.v7.widget.Toolbar;
 import android.telephony.SmsManager;
 import android.telephony.TelephonyManager;
 import android.text.Html;
+import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.LinkMovementMethod;
@@ -60,16 +61,17 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.amlcurran.showcaseview.ShowcaseView;
-import com.github.amlcurran.showcaseview.targets.Target;
 import com.github.amlcurran.showcaseview.targets.ViewTarget;
 import com.google.i18n.phonenumbers.NumberParseException;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
@@ -136,7 +138,8 @@ public class MyGroupActivity extends AppCompatActivity
     static final int ACTION_UNLOCK_ALL = 6;
     static final int ACTION_CLEAR = 7;
     static final String ACTION_CODE_EXTRA = "actionCode";
-    private final static String DEMO_ACTIVITY_ID = "demo-main-activity";;
+    private final static String DEMO_ACTIVITY_ID = "demo-main-activity";
+    ;
 
 
     static boolean isAdmin;
@@ -165,8 +168,11 @@ public class MyGroupActivity extends AppCompatActivity
     private MenuItem destroyMenuItem;
     private MenuItem exitMenuItem;
     private ShowcaseView showcasedView;
-    private int counter=0;
-    private ViewTarget t1;
+
+    private int counter = 0;
+    private ViewTarget fabTarget;
+    private ViewTarget sendTarget;
+    private ViewTarget lockTarget;
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -174,6 +180,7 @@ public class MyGroupActivity extends AppCompatActivity
         if (intent.hasExtra("countryCodeChosen")) {
             countryCodeChosen = intent.getStringExtra("countryCodeChosen");
         }
+
         if (ContactsContract.Intents.SEARCH_SUGGESTION_CLICKED.equals(intent.getAction())) {
             //handles suggestion clicked query
             Cursor phoneCursor = getContentResolver().query(intent.getData(), null, null, null, null);
@@ -189,6 +196,8 @@ public class MyGroupActivity extends AppCompatActivity
             String phoneNumber = searchView.getQuery().toString();
             addToListAdapter(null, phoneNumber);
         }
+
+
     }
 
     private void addToListAdapter(String name, String phoneNumber) {
@@ -203,6 +212,25 @@ public class MyGroupActivity extends AppCompatActivity
         UserItem user = new UserItem(name, phoneNumber, doesUserHaveApp(phoneNumber));
         UserFragment.addPerson(user);
         closeSearchView();
+        if (LoginActivity.needTutorial) {
+            stepTwoSendTutorial();
+        }
+    }
+
+    private void stepTwoSendTutorial() {
+        RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lps.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        lps.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+        showcasedView.setButtonPosition(lps);
+
+        sendTarget = new ViewTarget(R.id.send_to_all, this);
+
+        showcasedView.setTarget(sendTarget);
+
+        showcasedView.setContentTitle("Send lock request(s)");
+        showcasedView.setContentText("-If it's his first time sms will be send \n -If the user login this button send join notification");
+//                .setContentTitle("")
+//                .setContentText("one")
     }
 
     @Override
@@ -286,15 +314,36 @@ public class MyGroupActivity extends AppCompatActivity
 //        ViewTarget target = new ViewTarget(showcasedView);
 //        ShowcaseView.insertShowcaseView(target, this, R.string.showcase_title, R.string.showcase_details);
 
-        t1 = new ViewTarget(R.id.fab, this);
+
+//        initShowCasts();
+
+
+    }
+
+    private void initShowCasts() {
+        RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        fabTarget = new ViewTarget(R.id.fab, this);
         showcasedView = new ShowcaseView.Builder(this)
-                .setTarget(Target.NONE)
-                .setOnClickListener(this)
-                .setContentTitle("Floating action button")
-                .setContentText("Main action: send, lock, unlock")
+                .setTarget(fabTarget)
+                .setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        showcasedView.hide();
+                        LoginActivity.needTutorial = false;
+                    }
+                })
+//                .setContentTitle("")
+//                .setContentText("one")
                 .setStyle(R.style.MyShowcaseStyle)
                 .build();
-        showcasedView.setButtonText("Demo");
+        showcasedView.setButtonPosition(lps);
+        lps.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        lps.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+        int margin = ((Number) (getResources().getDisplayMetrics().density * 125)).intValue();
+        lps.setMargins(margin, margin, margin, margin);
+        showcasedView.setButtonText("Skip Tutorial");
+        showcasedView.show();
     }
 
     private void incrementUnlockAcceptedCount(boolean isFromAdmin) {
@@ -485,6 +534,7 @@ public class MyGroupActivity extends AppCompatActivity
                 @Override
                 public void onClick(View v) {
                     lockAll();
+                    stepFourShowLockBt();
                 }
             });
         } else if (numNotSent > 0) {
@@ -494,6 +544,8 @@ public class MyGroupActivity extends AppCompatActivity
                 @Override
                 public void onClick(View v) {
                     sendRequestToAll();
+                    stepFourShowLockBt();
+
                 }
             });
         } else {
@@ -505,6 +557,23 @@ public class MyGroupActivity extends AppCompatActivity
                     searchView.setIconified(false);
                 }
             });
+        }
+        if (LoginActivity.needTutorial) {
+            Toast.makeText(MyGroupActivity.this, "", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void stepFourShowLockBt() {
+        lockTarget = new ViewTarget(actionBarTitle);
+        showcasedView.setTarget(lockTarget);
+        showcasedView.setContentText("Lock/Unlock");
+
+        try {
+            Thread.sleep(3000);
+            showcasedView.hide();
+            LoginActivity.needTutorial = false;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -711,8 +780,13 @@ public class MyGroupActivity extends AppCompatActivity
         navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
+
         onNavigationItemSelected(null);
         setupSearchView();
+
+        if (LoginActivity.needTutorial) {
+            initShowCasts();
+        }
     }
 
 /*    // --------------------------------------------------
@@ -744,7 +818,9 @@ public class MyGroupActivity extends AppCompatActivity
         }
     }
 
-    *//**
+    */
+
+    /**
      * Reset the checkbox so that RoboDemo will be shown again even if user checked it previously.
      *//*
     private void showDemoAgain() {
@@ -752,7 +828,6 @@ public class MyGroupActivity extends AppCompatActivity
         this.showDemo = true;
         displayDemoIfNeeded();
     }*/
-
     private void showUnlockPushDialog() {
         final AlertDialog.Builder b = new AlertDialog.Builder(MyGroupActivity.this);
         b.setIcon(android.R.drawable.ic_dialog_alert);
@@ -813,6 +888,7 @@ public class MyGroupActivity extends AppCompatActivity
 
     static void updateSingleUserInParse(UserItem modifiedUser) {
         List<UserItem> modifiedUsers = new ArrayList<>();
+
         modifiedUsers.add(modifiedUser);
         updateUsersInParse(modifiedUsers);
     }
@@ -966,6 +1042,9 @@ public class MyGroupActivity extends AppCompatActivity
         }*/
         if (id == R.id.send_to_all) {
             sendRequestToAll();
+            if (LoginActivity.needTutorial) {
+                stepThreeLockRequest();
+            }
             return true;
         }
         if (id == R.id.admin_destroy_group) {
@@ -997,6 +1076,15 @@ public class MyGroupActivity extends AppCompatActivity
 
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void stepThreeLockRequest() {
+//        RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        showcasedView.setTitleTextAlignment(Layout.Alignment.ALIGN_CENTER);
+//        showcasedView.setButtonPosition(lps);
+        showcasedView.setTarget(fabTarget);
+        showcasedView.setContentTitle("\n\n\n\n\n\n\nNotification sent to your friend");
+        showcasedView.setContentText("when he accept to join the group the button change to LOCK icon");
     }
 
     private void exitFromGroup() {
@@ -1221,23 +1309,15 @@ public class MyGroupActivity extends AppCompatActivity
     public void onClick(View v) {
         switch (counter) {
             case 0:
-                showcasedView.setShowcase(t1, true);
-                showcasedView.setContentTitle("FAB");
-                showcasedView.setContentText("desc");
+                Toast.makeText(MyGroupActivity.this, "case 0 ", Toast.LENGTH_SHORT).show();
                 break;
             case 1:
-                showcasedView.hide();
-/*                        case 0:
-                showcasedView.setShowcase(t1, true);
-                showcasedView.setContentTitle("FAB");
-                showcasedView.setContentText("desc");
+                Toast.makeText(MyGroupActivity.this, "case 1", Toast.LENGTH_SHORT).show();
                 break;
-                        case 0:
-                showcasedView.setShowcase(t1, true);
-                showcasedView.setContentTitle("FAB");
-                showcasedView.setContentText("desc");
-                break;*/
-break;
+
+            case 2:
+                Toast.makeText(MyGroupActivity.this, "case 2", Toast.LENGTH_SHORT).show();
+                break;
         }
         counter++;
     }
