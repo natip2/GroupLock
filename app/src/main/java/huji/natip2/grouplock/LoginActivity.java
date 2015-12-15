@@ -41,6 +41,7 @@ import java.util.List;
 public class LoginActivity extends AppCompatActivity {
 
     static final String USER_CHANNEL_PREFIX = "t";
+    private static final boolean ALWAYS_TUTORIAL = false;
 
     final private String APPLICATION_KEY = "3117d877-3cbe-446f-95fd-7ff146ab25eb";
     final private String DEFAULT_PASS = "55555";
@@ -84,7 +85,7 @@ public class LoginActivity extends AppCompatActivity {
             //user is exist!
             Intent intent = new Intent(getApplicationContext(), MyGroupActivity.class);
             intent.putExtra("countryCodeChosen", countryCodeChosen);
-            needTutorial = true; //todo change to true
+            needTutorial = ALWAYS_TUTORIAL; //todo change to true
             startActivity(intent);
             finish();
             return;
@@ -230,7 +231,7 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onInitiated() {
                 Toast.makeText(getApplicationContext(), "Confirmation Message send", Toast.LENGTH_LONG).show();
-                // Verification initiated
+
             }
 
             @Override
@@ -344,16 +345,6 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
     }
-
-//    private String getPhoneNumber(){
-//        username = phoneField.getText().toString();
-//        if (username.startsWith("0")){
-//            return countryCodeChosen + username.substring(1);
-//        }
-//        else{
-//            return countryCodeChosen + username;
-//        }
-//    }
 
 
     private boolean isPhoneValid(String phone) {

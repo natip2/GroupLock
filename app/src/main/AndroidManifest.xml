@@ -44,10 +44,10 @@
             android:name=".LoginActivity"
             android:label="@string/app_name"
             android:screenOrientation="portrait">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            <!--<intent-filter>-->
+                <!--<action android:name="android.intent.action.MAIN" />-->
+                <!--<category android:name="android.intent.category.LAUNCHER" />-->
+            <!--</intent-filter>-->
         </activity>
         <activity
             android:name=".CountryCodeActivity"
@@ -117,30 +117,16 @@
             android:name=".AppLockService"
             android:exported="false"/>
 
-        <service
-            android:name=".RSSLock"
-            android:enabled="true"
-            android:exported="true" />
-
         <activity
             android:name=".SplashActivity"
             android:screenOrientation="portrait">
-            <!--<intent-filter>-->
-                <!--<action android:name="android.intent.action.MAIN" />-->
-                <!--<category android:name="android.intent.category.LAUNCHER" />-->
-            <!--</intent-filter>-->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
 
-        <!--<activity-->
-            <!--android:name=".ScreenSlidePagerActivity"-->
-            <!--android:screenOrientation="portrait">-->
 
-        <!--</activity>-->
-
-        <activity
-            android:name=".CollectionDemoActivity"
-            android:label="@string/skip"
-            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

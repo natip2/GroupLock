@@ -57,7 +57,7 @@ public class AppLockService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (!isServiceRunning) {
-            Toast.makeText(AppLockService.this, "AppLockService startId: " + startId, Toast.LENGTH_SHORT).show();
+            Toast.makeText(AppLockService.this, "The phone is LOCKED", Toast.LENGTH_SHORT).show();
             isServiceRunning = true;
             handler = new Handler() {
 
@@ -88,14 +88,14 @@ public class AppLockService extends Service {
                 }
             }).start();
         } else {
-            Toast.makeText(AppLockService.this, "AppLockService Already running", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+//            Toast.makeText(AppLockService.this, "AppLockService Already running", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         }
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onDestroy() {
-        Toast.makeText(AppLockService.this, "AppLockService onDestroy()", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
+        Toast.makeText(AppLockService.this, "The phone is UNLOCK", Toast.LENGTH_SHORT).show();// REMOVE: 19/11/2015
         isServiceRunning = false;
         if (AppLockService.isLockScreenVisible()) {
             LockScreen.mActivity.hideLock();

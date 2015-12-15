@@ -24,7 +24,7 @@
         android:layout_width="256dp"
         android:layout_height="256dp"
         android:contentDescription="@string/app_name"
-        android:src="@drawable/ic_splash_launcher"
+        android:src="@drawable/ic_splash_launcher_no_background"
         android:layout_above="@+id/app_slogan_text"
         android:layout_centerHorizontal="true" />
 

@@ -51,7 +51,6 @@ import android.support.v7.widget.Toolbar;
 import android.telephony.SmsManager;
 import android.telephony.TelephonyManager;
 import android.text.Html;
-import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.LinkMovementMethod;
@@ -95,7 +94,7 @@ import java.util.Locale;
 
 
 public class MyGroupActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, HistoryFragment.OnFragmentInteractionListener, UserFragment.OnFragmentInteractionListener, View.OnClickListener {
+        implements NavigationView.OnNavigationItemSelectedListener, HistoryFragment.OnFragmentInteractionListener, UserFragment.OnFragmentInteractionListener {
 
 
     final static int MAIN_FRAGMENT_INDEX = 0;
@@ -171,6 +170,7 @@ public class MyGroupActivity extends AppCompatActivity
 
     private int counter = 0;
     private ViewTarget fabTarget;
+    private ViewTarget verifiedTarget;
     private ViewTarget sendTarget;
     private ViewTarget lockTarget;
 
@@ -218,19 +218,18 @@ public class MyGroupActivity extends AppCompatActivity
     }
 
     private void stepTwoSendTutorial() {
-        RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lps.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
-        lps.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
-        showcasedView.setButtonPosition(lps);
+//        RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+//        lps.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+//        lps.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+//        showcasedView.setButtonPosition(lps);
 
         sendTarget = new ViewTarget(R.id.send_to_all, this);
 
         showcasedView.setTarget(sendTarget);
 
-        showcasedView.setContentTitle("Send lock request(s)");
-        showcasedView.setContentText("-If it's his first time sms will be send \n -If the user login this button send join notification");
-//                .setContentTitle("")
-//                .setContentText("one")
+        showcasedView.setContentTitle("Send group invite(s)");
+        showcasedView.setContentText("-Notification - for users that have the app installed\n-SMS - for those who don't");
+
     }
 
     @Override
@@ -329,12 +328,10 @@ public class MyGroupActivity extends AppCompatActivity
                 .setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        showcasedView.hide();
+                        showcasedView.hide(); //in case the user press skip tutorial
                         LoginActivity.needTutorial = false;
                     }
                 })
-//                .setContentTitle("")
-//                .setContentText("one")
                 .setStyle(R.style.MyShowcaseStyle)
                 .build();
         showcasedView.setButtonPosition(lps);
@@ -342,7 +339,7 @@ public class MyGroupActivity extends AppCompatActivity
         lps.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
         int margin = ((Number) (getResources().getDisplayMetrics().density * 125)).intValue();
         lps.setMargins(margin, margin, margin, margin);
-        showcasedView.setButtonText("Skip Tutorial");
+        showcasedView.setButtonText("  Skip Tutorial  ");
         showcasedView.show();
     }
 
@@ -512,6 +509,12 @@ public class MyGroupActivity extends AppCompatActivity
         for (UserItem item : UserFragment.localList) {
             UserStatus status = item.getStatus();
             if (status.equals(UserStatus.VERIFIED)) {
+                if(LoginActivity.needTutorial && numVerified ==1)
+                {
+                    LoginActivity.needTutorial = false;
+//                    stepFourShowLockBt();
+
+                }
                 numVerified++;
             } else if (!status.equals(UserStatus.WAIT_FOR_VERIFICATION)) {
                 numNotSent++;
@@ -534,7 +537,9 @@ public class MyGroupActivity extends AppCompatActivity
                 @Override
                 public void onClick(View v) {
                     lockAll();
-                    stepFourShowLockBt();
+                    if (showcasedView != null) {
+                        showcasedView.hide();
+                    }
                 }
             });
         } else if (numNotSent > 0) {
@@ -544,7 +549,7 @@ public class MyGroupActivity extends AppCompatActivity
                 @Override
                 public void onClick(View v) {
                     sendRequestToAll();
-                    stepFourShowLockBt();
+//                    stepFourShowLockBt();
 
                 }
             });
@@ -558,20 +563,23 @@ public class MyGroupActivity extends AppCompatActivity
                 }
             });
         }
-        if (LoginActivity.needTutorial) {
-            Toast.makeText(MyGroupActivity.this, "", Toast.LENGTH_SHORT).show();
-        }
     }
 
     private void stepFourShowLockBt() {
-        lockTarget = new ViewTarget(actionBarTitle);
-        showcasedView.setTarget(lockTarget);
-        showcasedView.setContentText("Lock/Unlock");
-
+//        lockTarget = new ViewTarget(actionBarTitle);
+//        showcasedView.setTarget(lockTarget);
+//        showcasedView.setContentText("Lock/Unlock");
+        showcasedView.setTarget(fabTarget);
+        showcasedView.refreshDrawableState();
+        showcasedView.hide();
+        showcasedView.show();
         try {
-            Thread.sleep(3000);
+
+
+
+            showcasedView.setContentTitle("Congratulation");
+            Thread.sleep(10000);
             showcasedView.hide();
-            LoginActivity.needTutorial = false;
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -1080,11 +1088,11 @@ public class MyGroupActivity extends AppCompatActivity
 
     private void stepThreeLockRequest() {
 //        RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        showcasedView.setTitleTextAlignment(Layout.Alignment.ALIGN_CENTER);
+//        showcasedView.setTitleTextAlignment(Layout.Alignment.ALIGN_CENTER);
 //        showcasedView.setButtonPosition(lps);
         showcasedView.setTarget(fabTarget);
-        showcasedView.setContentTitle("\n\n\n\n\n\n\nNotification sent to your friend");
-        showcasedView.setContentText("when he accept to join the group the button change to LOCK icon");
+        showcasedView.setContentTitle("\n\n\n\n\n\n\nNotification is sent");
+        showcasedView.setContentText("When the user accepts the invite his status is changed to \"unlocked\" - ready for locking\n\n*Before the next step ask your friend for confirmation");
     }
 
     private void exitFromGroup() {
@@ -1305,20 +1313,4 @@ public class MyGroupActivity extends AppCompatActivity
         return name;
     }
 
-    @Override
-    public void onClick(View v) {
-        switch (counter) {
-            case 0:
-                Toast.makeText(MyGroupActivity.this, "case 0 ", Toast.LENGTH_SHORT).show();
-                break;
-            case 1:
-                Toast.makeText(MyGroupActivity.this, "case 1", Toast.LENGTH_SHORT).show();
-                break;
-
-            case 2:
-                Toast.makeText(MyGroupActivity.this, "case 2", Toast.LENGTH_SHORT).show();
-                break;
-        }
-        counter++;
-    }
 }
